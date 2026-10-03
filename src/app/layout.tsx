@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import type { Metadata, Viewport } from "next";
 import { rootMetadata } from "@/lib/seo/metadata";
 import { SiteHeader } from "@/components/layout/site-header";
