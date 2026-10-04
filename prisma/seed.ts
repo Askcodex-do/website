@@ -1086,12 +1086,13 @@ async function getOrCreateTags(tags: string[]) {
 /* -------------------------------------------------------------------------- */
 
 async function seedQuestions() {
-  const generatedQuestions = [
-    ...QUESTION_BANK,
-    ...generateArithmeticQuestions(),
-    ...generatePercentageQuestions(),
-    ...generateAlgebraQuestions(),
-  ];
+ const generatedQuestions = [
+  ...QUESTION_BANK,
+  ...generateArithmeticQuestions(),
+  ...generatePercentageQuestions(),
+  ...generateAlgebraQuestions(),
+  ...buildAllQuestions(generatorContext, examSlugsForSubject),
+];
 
   console.info(
     `[seed] preparing ${generatedQuestions.length} original practice questions`,
