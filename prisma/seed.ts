@@ -23,6 +23,7 @@
  *   npm run db:seed
  */
 
+import { buildAllQuestions } from "./seed/generators";
 import { PrismaClient, Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
