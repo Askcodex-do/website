@@ -25,7 +25,10 @@ export interface TestFixtures {
   examSlug: string;
   subjectSlug: string;
   topicSlug: string;
+  subSubjectSlug: string;
   levelSlug: string;
+  unlinkedLevelSlug: string;
+  offLevelQuestionId: string;
   questionIds: string[];
 }
 
@@ -33,7 +36,9 @@ const PREFIX = "vitest-";
 const TEST_EXAM_SLUG = `${PREFIX}exam`;
 const TEST_SUBJECT_SLUG = `${PREFIX}subject`;
 const TEST_TOPIC_SLUG = `${PREFIX}topic`;
+const TEST_SUB_SUBJECT_SLUG = `${PREFIX}sub-subject`;
 const TEST_LEVEL_SLUG = `${PREFIX}level`;
+const TEST_UNLINKED_LEVEL_SLUG = `${PREFIX}other-level`;
 
 /**
  * Create a self-contained fixture graph. Every row is namespaced with the
@@ -82,6 +87,14 @@ export async function setupFixtures(): Promise<TestFixtures> {
     update: {},
     create: { slug: TEST_LEVEL_SLUG, name: "Test Level", rank: 99 },
   });
+  // A second level the fixture exam is deliberately NOT linked to, so the
+  // "exam/education combination matches nothing" rule can be tested without
+  // depending on any seeded taxonomy.
+  const unlinkedLevel = await db.educationLevel.upsert({
+    where: { slug: TEST_UNLINKED_LEVEL_SLUG },
+    update: {},
+    create: { slug: TEST_UNLINKED_LEVEL_SLUG, name: "Unlinked Level", rank: 98 },
+  });
   const subject = await db.subject.upsert({
     where: { slug: TEST_SUBJECT_SLUG },
     update: {},
@@ -91,6 +104,15 @@ export async function setupFixtures(): Promise<TestFixtures> {
     where: { slug: TEST_TOPIC_SLUG },
     update: {},
     create: { slug: TEST_TOPIC_SLUG, name: "Test Topic", subjectId: subject.id },
+  });
+  const subSubject = await db.subSubject.upsert({
+    where: { slug: TEST_SUB_SUBJECT_SLUG },
+    update: { subjectId: subject.id },
+    create: {
+      slug: TEST_SUB_SUBJECT_SLUG,
+      name: "Test Sub-Subject",
+      subjectId: subject.id,
+    },
   });
   const exam = await db.exam.upsert({
     where: { slug: TEST_EXAM_SLUG },
@@ -147,6 +169,7 @@ export async function setupFixtures(): Promise<TestFixtures> {
           })),
         },
         subjects: { create: { subjectId: subject.id } },
+        subSubjects: { create: { subSubjectId: subSubject.id } },
         topics: { create: { topicId: topic.id } },
         exams: { create: { examId: exam.id } },
         educationLevels: { create: { educationLevelId: level.id } },
@@ -154,6 +177,32 @@ export async function setupFixtures(): Promise<TestFixtures> {
     });
     questionIds.push(question.id);
   }
+
+  // A question on the exam but at a level the exam is NOT linked to. The
+  // qualification gate must keep it out of the exam's pool.
+  const offLevel = await db.question.upsert({
+    where: { slug: `${PREFIX}off-level-q` },
+    update: {},
+    create: {
+      slug: `${PREFIX}off-level-q`,
+      stem: "Test question at an unrelated education level?",
+      difficulty: "MEDIUM",
+      status: "PUBLISHED",
+      publishedAt: new Date(),
+      options: {
+        create: ["Correct", "Wrong A", "Wrong B", "Wrong C"].map((text, index) => ({
+          label: ["A", "B", "C", "D"][index],
+          text,
+          isCorrect: index === 0,
+          sortOrder: index,
+        })),
+      },
+      subjects: { create: { subjectId: subject.id } },
+      topics: { create: { topicId: topic.id } },
+      exams: { create: { examId: exam.id } },
+      educationLevels: { create: { educationLevelId: unlinkedLevel.id } },
+    },
+  });
 
   return {
     adminId: admin.id,
@@ -163,7 +212,10 @@ export async function setupFixtures(): Promise<TestFixtures> {
     examSlug: TEST_EXAM_SLUG,
     subjectSlug: TEST_SUBJECT_SLUG,
     topicSlug: TEST_TOPIC_SLUG,
+    subSubjectSlug: TEST_SUB_SUBJECT_SLUG,
     levelSlug: TEST_LEVEL_SLUG,
+    unlinkedLevelSlug: TEST_UNLINKED_LEVEL_SLUG,
+    offLevelQuestionId: offLevel.id,
     questionIds,
   };
 }
@@ -197,9 +249,11 @@ export async function teardownFixtures(): Promise<void> {
   await db.user.deleteMany({ where: { id: { in: userIds } } });
 
   await db.topic.deleteMany({ where: { slug: TEST_TOPIC_SLUG } });
+  await db.subSubject.deleteMany({ where: { slug: TEST_SUB_SUBJECT_SLUG } });
   await db.subject.deleteMany({ where: { slug: TEST_SUBJECT_SLUG } });
   await db.exam.deleteMany({ where: { slug: TEST_EXAM_SLUG } });
   await db.educationLevel.deleteMany({ where: { slug: TEST_LEVEL_SLUG } });
+  await db.educationLevel.deleteMany({ where: { slug: TEST_UNLINKED_LEVEL_SLUG } });
   await db.contactMessage.deleteMany({ where: { email: { startsWith: PREFIX } } });
 }
 

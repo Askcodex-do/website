@@ -124,6 +124,7 @@ enum ExamType {
   COMPETITIVE
   EDUCATIONAL
   GENERAL
+  PROFESSIONAL
 }
 
 enum ExamMode {

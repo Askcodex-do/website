@@ -467,33 +467,35 @@ export interface DuplicateGroup {
 export async function findDuplicateQuestions(
   limit = 50,
 ): Promise<{ groups: DuplicateGroup[]; totalGroups: number }> {
-  const rows = await db.question.findMany({
-    where: { status: { not: "ARCHIVED" } },
-    select: { id: true, stem: true },
-    orderBy: { createdAt: "asc" },
-    take: 20000,
-  });
+  // Grouping happens in PostgreSQL: with a bank of hundreds of thousands of
+  // questions, scanning a fixed window in the application would silently miss
+  // duplicates outside it. The normalised stem is the grouping key.
+  const groups = await db.$queryRaw<
+    Array<{ key: string; count: number; sample: string; ids: string[] }>
+  >`
+    SELECT lower(btrim(regexp_replace(stem, '\\s+', ' ', 'g'))) AS key,
+           count(*)::int AS count,
+           (array_agg(id ORDER BY "createdAt" ASC))[1:50] AS ids,
+           min(stem) AS sample
+    FROM "Question"
+    WHERE status <> 'ARCHIVED'
+    GROUP BY 1
+    HAVING count(*) > 1
+    ORDER BY count DESC
+    LIMIT ${limit}
+  `;
 
-  const buckets = new Map<string, Array<{ id: string; stem: string }>>();
-  for (const row of rows) {
-    const key = row.stem.trim().toLowerCase().replace(/\s+/g, " ");
-    const bucket = buckets.get(key) ?? [];
-    bucket.push(row);
-    buckets.set(key, bucket);
-  }
+  const [{ total }] = await db.$queryRaw<Array<{ total: number }>>`
+    SELECT count(*)::int AS total FROM (
+      SELECT lower(btrim(regexp_replace(stem, '\\s+', ' ', 'g'))) AS key
+      FROM "Question"
+      WHERE status <> 'ARCHIVED'
+      GROUP BY 1
+      HAVING count(*) > 1
+    ) AS grouped
+  `;
 
-  const all = [...buckets.entries()]
-    .filter(([, bucket]) => bucket.length > 1)
-    .sort((a, b) => b[1].length - a[1].length);
-
-  const groups: DuplicateGroup[] = all.slice(0, limit).map(([key, bucket]) => ({
-    key,
-    count: bucket.length,
-    sample: bucket[0].stem,
-    ids: bucket.map((b) => b.id),
-  }));
-
-  return { groups, totalGroups: all.length };
+  return { groups, totalGroups: total };
 }
 
 /** Approximate duplicates: same stem prefix, different full stem. */

@@ -22,6 +22,7 @@ import {
   ORGANIZATIONS,
   PAKISTAN_EXAMS,
 } from "./seed/taxonomy-pakistan";
+import { buildExamSubjectMap, resolvePlacement, buildTopicCanonicalMap, canonicalTopicSlug } from "./seed/generators/helpers";
 import { buildPrepPages, PREVIOUS_PAPERS } from "./seed/content";
 import { buildAllQuestions } from "./seed/generators";
 import type { SeedQuestion } from "./seed/types";
@@ -135,6 +136,7 @@ async function seedUsers() {
 }
 
 async function seedTaxonomy() {
+  const canonical = buildTopicCanonicalMap();
   for (const level of EDUCATION_LEVELS) {
     await db.educationLevel.upsert({
       where: { slug: level.slug },
@@ -185,8 +187,9 @@ async function seedTaxonomy() {
       const subSubjectId = topic.subSubject
         ? (subSubjectIdBySlug.get(topic.subSubject) ?? null)
         : null;
+      const topicSlug = canonicalTopicSlug(canonical, subject.slug, topic.slug)!;
       const createdTopic = await db.topic.upsert({
-        where: { slug: topic.slug },
+        where: { slug: topicSlug },
         update: {
           name: topic.name,
           description: topic.description ?? null,
@@ -195,7 +198,7 @@ async function seedTaxonomy() {
           sortOrder: topicIndex,
         },
         create: {
-          slug: topic.slug,
+          slug: topicSlug,
           name: topic.name,
           description: topic.description ?? null,
           subjectId: created.id,
@@ -404,26 +407,21 @@ async function seedQuestions() {
   // Exact taxonomy mapping: a topic belongs to a sub-subject by definition, so
   // linking a question to that sub-subject is not a guess. Subtopics are left
   // unmapped (they require per-question judgement) rather than fabricated.
+  const canonical = buildTopicCanonicalMap();
   const topicSubSubject: Record<string, string> = {};
   for (const subject of SUBJECTS) {
     for (const topic of subject.topics) {
-      if (topic.subSubject) topicSubSubject[topic.slug] = topic.subSubject;
+      if (topic.subSubject) {
+        const slug = canonicalTopicSlug(canonical, subject.slug, topic.slug)!;
+        topicSubSubject[slug] = topic.subSubject;
+      }
     }
   }
 
-  // Which exams should each subject's questions link to? Prefer the exam whose
-  // subject list contains it; fall back to all exams when none match.
-  const examSlugsForSubject: Record<string, string[]> = {};
-  for (const subject of SUBJECTS) {
-    const matching = EXAMS.filter((e) => e.subjects.includes(subject.slug)).map(
-      (e) => e.slug,
-    );
-    examSlugsForSubject[subject.slug] = matching.length
-      ? matching
-      : EXAMS.map((e) => e.slug);
-  }
-
-  // Only link questions to exams that actually exist in the database.
+  // Which exams should each subject's questions link to? Only exams whose
+  // blueprint actually includes the subject, so a question can never be
+  // surfaced for an exam that does not teach it.
+  const examSlugsForSubject = buildExamSubjectMap();
   for (const key of Object.keys(examSlugsForSubject)) {
     examSlugsForSubject[key] = examSlugsForSubject[key].filter((slug) =>
       examBySlug.has(slug),
@@ -454,33 +452,26 @@ async function seedQuestions() {
     `[seed] generated ${generatedRaw.length} questions (${generated.length} unique after de-duplication)`,
   );
 
-  // Derive meaningful education-level tags. A question is tagged with the
-  // intersection of (a) the education levels implied by its difficulty and
-  // (b) the education levels of the exams it belongs to. This is what makes
-  // education-level filtering actually narrow the result set.
-  const DIFFICULTY_LEVELS: Record<string, string[]> = {
-    EASY: ["primary", "middle", "matric"],
-    MEDIUM: ["matric", "intermediate", "graduation"],
-    HARD: ["intermediate", "graduation", "post-graduation"],
-  };
-  const examLevelsBySlug = new Map(EXAMS.map((e) => [e.slug, e.educationLevels]));
+  // Qualification tagging. A question's levels are the levels at which its
+  // subject is taught, narrowed by its difficulty band; its exams are those
+  // that include the subject and share a level. This keeps matric-level
+  // questions out of post-graduate pools (and vice versa) and bounds the
+  // question→exam fan-out so the join table stays scalable.
+  const subjectLevelsBySlug: Record<string, string[]> = {};
+  for (const subject of SUBJECTS) subjectLevelsBySlug[subject.slug] = subject.levels;
+  const examLevelsBySlug: Record<string, string[]> = {};
+  for (const exam of EXAMS) examLevelsBySlug[exam.slug] = exam.educationLevels;
 
   for (const question of generated) {
-    const examLevels = new Set<string>();
-    for (const examSlug of question.exams) {
-      for (const level of examLevelsBySlug.get(examSlug) ?? []) {
-        examLevels.add(level);
-      }
-    }
-    const difficultyLevels = new Set(
-      DIFFICULTY_LEVELS[question.difficulty ?? "MEDIUM"] ?? [],
+    const placement = resolvePlacement(
+      question.subject,
+      question.difficulty,
+      examSlugsForSubject,
+      subjectLevelsBySlug,
+      examLevelsBySlug,
     );
-
-    let resolved = [...examLevels].filter((l) => difficultyLevels.has(l));
-    if (resolved.length === 0) {
-      resolved = examLevels.size > 0 ? [...examLevels] : allEducationSlugs;
-    }
-    question.educationLevels = resolved;
+    question.educationLevels = placement.levels;
+    question.exams = placement.exams;
   }
 
   // Ensure all tags exist.
@@ -515,7 +506,8 @@ async function seedQuestions() {
 
   const prepare = (q: SeedQuestion) => {
     const subjectId = subjectBySlug.get(q.subject);
-    const topicId = topicBySlug.get(q.topic);
+    const canonicalTopic = canonicalTopicSlug(canonical, q.subject, q.topic);
+    const topicId = canonicalTopic ? topicBySlug.get(canonicalTopic) : undefined;
     if (!subjectId || !topicId) return; // skip malformed seed data
     const id = randomUUID();
     const labels = ["A", "B", "C", "D"];

@@ -248,6 +248,16 @@ export function buildQuestionWhere(
     } else {
       and.push({ exams: { some: { examId: ids.examId } } });
     }
+
+    // Qualification gate: a question must share an education level with the
+    // exam, so an exam can never surface material pitched at another stage.
+    if (config && config.educationLevelIds.length > 0) {
+      and.push({
+        educationLevels: {
+          some: { educationLevelId: { in: config.educationLevelIds } },
+        },
+      });
+    }
   } else if (ids.subjectId) {
     and.push({ subjects: { some: { subjectId: ids.subjectId } } });
   }

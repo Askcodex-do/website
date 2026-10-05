@@ -5,6 +5,12 @@ import { generateFactQuestions } from "./facts";
 import { generateMathQuestions } from "./math";
 import { generateReasoningQuestions } from "./reasoning";
 import { generateComputerQuestions, generateScienceQuestions } from "./science-computer";
+import { generateMathV4 } from "./math-v4";
+import { generateEnglishV2 } from "./english-v2";
+import { generateUrduV1, generateRegionalV1 } from "./languages";
+import { generateReasoningV2 } from "./reasoning-v2";
+import { generateStemV1 } from "./stem";
+import { generateSocialV1 } from "./social";
 import type { GeneratorContext } from "./core";
 
 export type { GeneratorContext } from "./core";
@@ -27,6 +33,13 @@ export function buildAllQuestions(
     ...generateComputerQuestions(ctx),
     ...generateScienceQuestions(ctx),
     ...generateFactQuestions(ctx, examSlugsForSubject),
+    ...generateMathV4(),
+    ...generateEnglishV2(),
+    ...generateUrduV1(),
+    ...generateRegionalV1(),
+    ...generateReasoningV2(),
+    ...generateStemV1(),
+    ...generateSocialV1(),
   ];
 
   // Exam membership is a property of the subject, so it is resolved here rather

@@ -65,6 +65,13 @@ describe("question filtering", () => {
     });
     expect(byTopic.total).toBe(30);
 
+    const bySubSubject = await getQuestions({
+      exam: fixtures.examSlug,
+      subSubject: fixtures.subSubjectSlug,
+      limit: 5,
+    });
+    expect(bySubSubject.total).toBe(30);
+
     const easy = await getQuestions({
       exam: fixtures.examSlug,
       difficulty: "EASY",
@@ -81,15 +88,30 @@ describe("question filtering", () => {
     expect(byLevel.total).toBe(30);
   });
 
+  it("applies the exam qualification gate to the whole pool", async () => {
+    // The fixture includes one question on the exam but at a level the exam is
+    // not linked to; the engine must never surface it.
+    const result = await getQuestions({ exam: fixtures.examSlug, limit: 100 });
+    expect(result.total).toBe(30);
+    expect(result.questions.map((q) => q.id)).not.toContain(
+      fixtures.offLevelQuestionId,
+    );
+    const config = await resolveExamConfig(fixtures.examSlug);
+    const ids = await resolveTaxonomyIds({ exam: fixtures.examSlug });
+    const where = buildQuestionWhere({ exam: fixtures.examSlug }, ids, config);
+    const and = Array.isArray(where.AND) ? where.AND : [where.AND];
+    expect(and.some((clause) => clause && "educationLevels" in clause)).toBe(true);
+  });
+
   it("returns an empty pool when an exam/education combination matches nothing", async () => {
     const result = await getQuestions({
       exam: fixtures.examSlug,
-      educationLevel: "graduation",
+      educationLevel: fixtures.unlinkedLevelSlug,
       limit: 5,
       onUnknownExam: "empty",
     });
-    // The fixture exam is only linked to the test level, so a different level
-    // must not leak questions from the pool.
+    // The fixture exam is only linked to its own test level, so a different
+    // level must not leak questions from the pool.
     expect(result.total).toBe(0);
     expect(result.questions).toHaveLength(0);
   });

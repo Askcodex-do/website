@@ -29,6 +29,17 @@ npm run build              # prisma generate && prisma migrate deploy && next bu
   into thousands of deterministic, answer-checked items. Curated hand-authored
   items live in `prisma/seed/generators/curated.ts` and flow through the same
   engine.
+- The taxonomy has three optional layers: subject → sub-subject → topic. The
+  sub-subject grouping is data-only in `prisma/seed/taxonomy/sub-subjects.ts`;
+  `subjects.ts` reparents the listed topics at module load. A topic with no
+  sub-subject stays directly under its subject.
+- The engine applies an **exam qualification gate**: a question must share an
+  education level with the exam (`ExamEducationLevel`) or it is excluded, so an
+  exam can never surface material pitched at another stage. The generator's
+  `resolvePlacement()` aligns each question's levels with its linked exams.
+- Admin duplicate detection (`findDuplicateQuestions`) groups by normalised stem
+  **in PostgreSQL**, not in a fixed application-side window, so it stays correct
+  as the bank grows past hundreds of thousands of rows.
 - Exam/quiz mode (`STATIC` vs `RANDOM`) is configuration, not frontend logic.
   It is stored on `ExamConfiguration.mode`.
 
