@@ -205,11 +205,11 @@ topics and education levels defined in `prisma/seed/taxonomy.ts` and
 `prisma/seed/taxonomy-pakistan.ts`. It also seeds previous papers, preparation
 pages and paper templates. A fresh seed produces roughly:
 
-- Pakistan exam hierarchy: categories, organizations and 13+ exams
-- 10 subjects, 43 topics, 6 education levels
+- Pakistan exam hierarchy: 11 categories, 16 organizations and 64 exams
+- 18 subjects, 222 topics, 6 education levels
 - 11,000+ questions and 44,000+ options
-- 50,000+ question-to-exam links
-- Previous papers, preparation pages and paper templates
+- 400,000+ question-to-exam links
+- Previous papers, 320 preparation pages and paper templates
 
 Key indexes cover exam, subject, topic, education level, difficulty, status and
 slug, so the engine stays fast as the bank grows.
