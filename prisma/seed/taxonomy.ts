@@ -578,7 +578,7 @@ export const EXAMS: SeedExam[] = [
       "english",
       "mathematics",
       "analytical-reasoning",
-      "general-science",
+      "everyday-science",
       "computer",
     ],
     configuration: {
@@ -1076,7 +1076,7 @@ export const EXAMS: SeedExam[] = [
     subjects: [
       "english",
       "mathematics",
-      "general-science",
+      "everyday-science",
       "islamiat",
       "pakistan-studies",
       "general-knowledge",
@@ -1103,7 +1103,7 @@ export const EXAMS: SeedExam[] = [
     subjects: [
       "english",
       "mathematics",
-      "general-science",
+      "everyday-science",
       "islamiat",
       "pakistan-studies",
       "computer",
@@ -1129,7 +1129,7 @@ export const EXAMS: SeedExam[] = [
     subjects: [
       "english",
       "mathematics",
-      "general-science",
+      "everyday-science",
       "computer",
       "pakistan-studies",
       "islamiat",
