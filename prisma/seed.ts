@@ -1204,13 +1204,16 @@ async function seedQuestions() {
       continue;
     }
 
-    if (!validOptions.includes(item.correct)) {
-      console.warn(
-        `[seed] skipped because correct answer is missing: ${item.stem}`,
-      );
-      skippedCount++;
-      continue;
-    }
+    if (
+  item.correct < 0 ||
+  item.correct >= validOptions.length
+) {
+  console.warn(
+    `[seed] skipped because correct answer index is invalid: ${item.stem}`,
+  );
+  skippedCount++;
+  continue;
+}
 
     const slugBase = questionSlug(item.stem, index + 1);
 
@@ -1219,8 +1222,8 @@ async function seedQuestions() {
         slug: slugBase,
         stem: item.stem,
         explanation:
-          item.explanation ??
-          `The correct answer is "${item.correct}".`,
+            item.explanation ??
+          `The correct answer is "${validOptions[item.correct]}".`,
         source: "Original practice question",
         reference: null,
         difficulty: item.difficulty,
@@ -1253,7 +1256,7 @@ async function seedQuestions() {
           create: validOptions.map((option, optionIndex) => ({
             label: String.fromCharCode(65 + optionIndex),
             text: option,
-            isCorrect: option === item.correct,
+            isCorrect: optionIndex === item.correct,
             sortOrder: optionIndex,
           })),
         },
