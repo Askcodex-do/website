@@ -1,4 +1,5 @@
 import type { SeedQuestion } from "../types";
+import { generateCuratedQuestions } from "./curated";
 import { generateEnglishQuestions } from "./english";
 import { generateFactQuestions } from "./facts";
 import { generateMathQuestions } from "./math";
@@ -19,6 +20,7 @@ export function buildAllQuestions(
   examSlugsForSubject: Record<string, string[]>,
 ): SeedQuestion[] {
   const questions = [
+    ...generateCuratedQuestions(),
     ...generateMathQuestions(ctx),
     ...generateEnglishQuestions(ctx),
     ...generateReasoningQuestions(ctx),

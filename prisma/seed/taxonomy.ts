@@ -1,8 +1,9 @@
 /**
  * Taxonomy + exam blueprint seed data.
  *
- * Exams are data-driven. The public site reads exam configuration from the
- * database instead of hard-coding individual exams.
+ * This is the ONLY place exam behaviour is defined. The public site never
+ * special-cases "PST" or "CSS" — it reads these rows through the Question
+ * Selection Engine.
  */
 
 export interface SeedEducationLevel {
@@ -16,7 +17,15 @@ export interface SeedSubject {
   slug: string;
   name: string;
   description: string;
-  topics: { slug: string; name: string; description?: string }[];
+  subSubjects?: { slug: string; name: string; description?: string }[];
+  topics: {
+    slug: string;
+    name: string;
+    description?: string;
+    /** Optional parent sub-subject slug. */
+    subSubject?: string;
+    subtopics?: { slug: string; name: string; description?: string }[];
+  }[];
 }
 
 export interface SeedExam {
@@ -30,6 +39,17 @@ export interface SeedExam {
   sortOrder: number;
   educationLevels: string[];
   subjects: string[];
+  /** Category slug (hierarchy top level). */
+  category?: string;
+  /** Conducting authority slug. */
+  organization?: string;
+  /** Structured metadata surfaced on preparation pages. */
+  eligibility?: string;
+  testPattern?: string;
+  syllabus?: string;
+  duration?: string;
+  totalMarks?: string;
+  website?: string;
   configuration: {
     mode: "STATIC" | "RANDOM";
     defaultQuestionCount: number;
@@ -41,10 +61,6 @@ export interface SeedExam {
     staticOrderSeed?: string;
   };
 }
-
-/* -------------------------------------------------------------------------- */
-/* Education levels                                                           */
-/* -------------------------------------------------------------------------- */
 
 export const EDUCATION_LEVELS: SeedEducationLevel[] = [
   {
@@ -85,31 +101,52 @@ export const EDUCATION_LEVELS: SeedEducationLevel[] = [
   },
 ];
 
-/* -------------------------------------------------------------------------- */
-/* Subjects and topics                                                        */
-/* -------------------------------------------------------------------------- */
-
 export const SUBJECTS: SeedSubject[] = [
   {
     slug: "english",
     name: "English",
     description:
       "English grammar, vocabulary, comprehension and verbal ability.",
+    subSubjects: [
+      { slug: "english-grammar", name: "Grammar" },
+      { slug: "english-vocabulary", name: "Vocabulary" },
+      { slug: "english-composition", name: "Composition" },
+    ],
     topics: [
-      { slug: "tenses", name: "Tenses" },
-      { slug: "parts-of-speech", name: "Parts of Speech" },
-      { slug: "articles", name: "Articles" },
-      { slug: "prepositions", name: "Prepositions" },
+      {
+        slug: "tenses", name: "Tenses", subSubject: "english-grammar",
+        subtopics: [
+          { slug: "present-tense", name: "Present Tense" },
+          { slug: "past-tense", name: "Past Tense" },
+          { slug: "future-tense", name: "Future Tense" },
+        ],
+      },
+      {
+        slug: "parts-of-speech", name: "Parts of Speech", subSubject: "english-grammar",
+        subtopics: [
+          { slug: "nouns-pronouns", name: "Nouns & Pronouns" },
+          { slug: "verbs-adverbs", name: "Verbs & Adverbs" },
+          { slug: "adjectives", name: "Adjectives" },
+        ],
+      },
+      { slug: "articles", name: "Articles", subSubject: "english-grammar" },
+      { slug: "prepositions", name: "Prepositions", subSubject: "english-grammar" },
       { slug: "conjunctions", name: "Conjunctions" },
       { slug: "pronouns", name: "Pronouns" },
       { slug: "adjectives", name: "Adjectives" },
       { slug: "adverbs", name: "Adverbs" },
       { slug: "verbs", name: "Verbs" },
-      { slug: "synonyms-antonyms", name: "Synonyms & Antonyms" },
-      { slug: "sentence-structure", name: "Sentence Structure" },
+      {
+        slug: "synonyms-antonyms", name: "Synonyms & Antonyms", subSubject: "english-vocabulary",
+        subtopics: [
+          { slug: "synonyms", name: "Synonyms" },
+          { slug: "antonyms", name: "Antonyms" },
+        ],
+      },
+      { slug: "sentence-structure", name: "Sentence Structure", subSubject: "english-grammar" },
       { slug: "sentence-correction", name: "Sentence Correction" },
-      { slug: "idioms-phrases", name: "Idioms & Phrases" },
-      { slug: "active-passive-voice", name: "Active & Passive Voice" },
+      { slug: "idioms-phrases", name: "Idioms & Phrases", subSubject: "english-vocabulary" },
+      { slug: "active-passive-voice", name: "Active & Passive Voice", subSubject: "english-grammar" },
       { slug: "direct-indirect-speech", name: "Direct & Indirect Speech" },
       { slug: "spelling", name: "Spelling" },
       { slug: "vocabulary", name: "Vocabulary" },
@@ -118,28 +155,50 @@ export const SUBJECTS: SeedSubject[] = [
       { slug: "comprehension", name: "Reading Comprehension" },
     ],
   },
-
   {
     slug: "mathematics",
     name: "Mathematics",
     description:
       "School mathematics, quantitative aptitude and mathematical reasoning.",
-    topics: [
+    subSubjects: [
       { slug: "arithmetic", name: "Arithmetic" },
+      { slug: "algebra", name: "Algebra" },
+      { slug: "geometry", name: "Geometry" },
+    ],
+    topics: [
+      {
+        slug: "arithmetic", name: "Arithmetic", subSubject: "arithmetic",
+        subtopics: [
+          { slug: "fractions-decimals", name: "Fractions & Decimals" },
+          { slug: "ratios-proportions", name: "Ratios & Proportions" },
+        ],
+      },
       { slug: "number-system", name: "Number System" },
       { slug: "fractions", name: "Fractions & Decimals" },
-      { slug: "percentages", name: "Percentages" },
+      { slug: "percentages", name: "Percentages", subSubject: "arithmetic" },
       { slug: "ratios-proportions", name: "Ratios & Proportions" },
-      { slug: "averages", name: "Averages" },
+      { slug: "averages", name: "Averages", subSubject: "arithmetic" },
       { slug: "profit-loss", name: "Profit & Loss" },
       { slug: "simple-interest", name: "Simple Interest" },
       { slug: "compound-interest", name: "Compound Interest" },
       { slug: "time-work", name: "Time & Work" },
       { slug: "time-distance", name: "Time, Speed & Distance" },
-      { slug: "algebra", name: "Algebra" },
+      {
+        slug: "algebra", name: "Algebra", subSubject: "algebra",
+        subtopics: [
+          { slug: "equations", name: "Equations" },
+          { slug: "polynomials", name: "Polynomials" },
+        ],
+      },
       { slug: "equations", name: "Equations" },
       { slug: "sequences", name: "Sequences & Series" },
-      { slug: "geometry", name: "Geometry" },
+      {
+        slug: "geometry", name: "Geometry", subSubject: "geometry",
+        subtopics: [
+          { slug: "triangles", name: "Triangles" },
+          { slug: "circles", name: "Circles" },
+        ],
+      },
       { slug: "mensuration", name: "Mensuration" },
       { slug: "trigonometry", name: "Trigonometry" },
       { slug: "probability", name: "Probability" },
@@ -148,7 +207,6 @@ export const SUBJECTS: SeedSubject[] = [
       { slug: "quantitative-reasoning", name: "Quantitative Reasoning" },
     ],
   },
-
   {
     slug: "physics",
     name: "Physics",
@@ -177,7 +235,6 @@ export const SUBJECTS: SeedSubject[] = [
       { slug: "nuclear-physics", name: "Nuclear Physics" },
     ],
   },
-
   {
     slug: "chemistry",
     name: "Chemistry",
@@ -201,7 +258,6 @@ export const SUBJECTS: SeedSubject[] = [
       { slug: "environmental-chemistry", name: "Environmental Chemistry" },
     ],
   },
-
   {
     slug: "biology",
     name: "Biology",
@@ -232,23 +288,32 @@ export const SUBJECTS: SeedSubject[] = [
       { slug: "ecology", name: "Ecology" },
     ],
   },
-
   {
     slug: "computer",
     name: "Computer Science",
     description:
       "Computer fundamentals, information technology, programming and networking.",
+    subSubjects: [
+      { slug: "computer-fundamentals", name: "Fundamentals" },
+      { slug: "computer-applications", name: "Applications" },
+    ],
     topics: [
-      { slug: "computer-fundamentals", name: "Computer Fundamentals" },
+      {
+        slug: "computer-fundamentals", name: "Computer Fundamentals", subSubject: "computer-fundamentals",
+        subtopics: [
+          { slug: "input-output-devices", name: "Input & Output Devices" },
+          { slug: "memory-storage", name: "Memory & Storage" },
+        ],
+      },
       { slug: "computer-history", name: "Computer History & Generations" },
-      { slug: "hardware", name: "Hardware" },
-      { slug: "software", name: "Software" },
+      { slug: "hardware", name: "Hardware", subSubject: "computer-fundamentals" },
+      { slug: "software", name: "Software", subSubject: "computer-applications" },
       { slug: "operating-systems", name: "Operating Systems" },
       { slug: "memory-storage", name: "Memory & Storage" },
       { slug: "input-output", name: "Input & Output Devices" },
-      { slug: "ms-office", name: "MS Office" },
+      { slug: "ms-office", name: "MS Office", subSubject: "computer-applications" },
       { slug: "internet", name: "Internet" },
-      { slug: "networking", name: "Networking" },
+      { slug: "networking", name: "Networking", subSubject: "computer-fundamentals" },
       { slug: "cyber-security", name: "Cyber Security" },
       { slug: "databases", name: "Databases" },
       { slug: "programming", name: "Programming Fundamentals" },
@@ -257,53 +322,70 @@ export const SUBJECTS: SeedSubject[] = [
       { slug: "information-technology", name: "Information Technology" },
     ],
   },
-
   {
     slug: "pakistan-studies",
     name: "Pakistan Studies",
     description:
       "Pakistan history, geography, constitution, politics and national affairs.",
+    subSubjects: [
+      { slug: "pakistan-history", name: "History" },
+      { slug: "pakistan-geography-sub", name: "Geography" },
+    ],
     topics: [
-      { slug: "pakistan-movement", name: "Pakistan Movement" },
+      {
+        slug: "pakistan-movement", name: "Pakistan Movement", subSubject: "pakistan-history",
+        subtopics: [
+          { slug: "lahore-resolution", name: "Lahore Resolution" },
+          { slug: "independence", name: "Independence" },
+        ],
+      },
       { slug: "muslim-league", name: "All-India Muslim League" },
       { slug: "allama-iqbal", name: "Allama Iqbal" },
       { slug: "quaid-e-azam", name: "Quaid-e-Azam" },
       { slug: "partition", name: "Partition of India" },
       { slug: "pakistan-history", name: "History of Pakistan" },
-      { slug: "pakistan-geography", name: "Geography of Pakistan" },
+      { slug: "pakistan-geography", name: "Geography of Pakistan", subSubject: "pakistan-geography-sub" },
       { slug: "rivers-dams", name: "Rivers, Dams & Water Resources" },
       { slug: "provinces", name: "Provinces & Administrative Areas" },
       { slug: "natural-resources", name: "Natural Resources" },
-      { slug: "constitution", name: "Constitution & Government" },
+      { slug: "constitution", name: "Constitution & Government", subSubject: "pakistan-history" },
       { slug: "political-history", name: "Political History" },
       { slug: "national-symbols", name: "National Symbols" },
       { slug: "economy-pakistan", name: "Economy of Pakistan" },
       { slug: "foreign-policy", name: "Foreign Policy" },
     ],
   },
-
   {
     slug: "islamiat",
     name: "Islamiat",
     description:
       "Quran, Hadith, Seerah, Islamic history, worship and Islamic studies.",
+    subSubjects: [
+      { slug: "quran-studies", name: "Quran & Hadith" },
+      { slug: "islamic-history-sub", name: "Islamic History" },
+    ],
     topics: [
-      { slug: "quran", name: "Quran & Tafseer" },
+      {
+        slug: "quran", name: "Quran & Tafseer", subSubject: "quran-studies",
+        subtopics: [
+          { slug: "quran-revelation", name: "Revelation" },
+          { slug: "quran-teachings", name: "Teachings" },
+        ],
+      },
       { slug: "hadith", name: "Hadith" },
-      { slug: "seerah", name: "Seerah of the Prophet (PBUH)" },
+      { slug: "seerah", name: "Seerah of the Prophet (PBUH)", subSubject: "islamic-history-sub" },
       { slug: "makki-madani", name: "Makki & Madani Surahs" },
-      { slug: "ibadat", name: "Ibadat (Worship)" },
+      { slug: "ibadat", name: "Ibadat (Worship)", subSubject: "quran-studies" },
       { slug: "salah", name: "Salah" },
       { slug: "fasting", name: "Fasting" },
       { slug: "zakat", name: "Zakat" },
       { slug: "hajj", name: "Hajj" },
-      { slug: "islamic-history", name: "Islamic History" },
+      { slug: "islamic-history", name: "Islamic History", subSubject: "islamic-history-sub" },
       { slug: "khulafa-e-rashideen", name: "Khulafa-e-Rashideen" },
       { slug: "islamic-civilization", name: "Islamic Civilization" },
       { slug: "islamic-ethics", name: "Islamic Ethics" },
     ],
   },
-
   {
     slug: "general-knowledge",
     name: "General Knowledge",
@@ -323,7 +405,6 @@ export const SUBJECTS: SeedSubject[] = [
       { slug: "important-days", name: "Important Days" },
     ],
   },
-
   {
     slug: "current-affairs",
     name: "Current Affairs",
@@ -341,7 +422,6 @@ export const SUBJECTS: SeedSubject[] = [
       { slug: "sports-current-affairs", name: "Sports Current Affairs" },
     ],
   },
-
   {
     slug: "everyday-science",
     name: "Everyday Science",
@@ -359,7 +439,6 @@ export const SUBJECTS: SeedSubject[] = [
       { slug: "everyday-chemistry", name: "Everyday Chemistry" },
     ],
   },
-
   {
     slug: "analytical-reasoning",
     name: "Analytical Reasoning",
@@ -381,7 +460,6 @@ export const SUBJECTS: SeedSubject[] = [
       { slug: "critical-thinking", name: "Critical Thinking" },
     ],
   },
-
   {
     slug: "pakistan-affairs",
     name: "Pakistan Affairs",
@@ -399,7 +477,6 @@ export const SUBJECTS: SeedSubject[] = [
       { slug: "water-energy", name: "Water & Energy" },
     ],
   },
-
   {
     slug: "current-affairs-competitive",
     name: "Competitive Current Affairs",
@@ -415,7 +492,6 @@ export const SUBJECTS: SeedSubject[] = [
       { slug: "environment", name: "Environment & Climate" },
     ],
   },
-
   {
     slug: "law",
     name: "Law",
@@ -433,7 +509,6 @@ export const SUBJECTS: SeedSubject[] = [
       { slug: "legal-reasoning", name: "Legal Reasoning" },
     ],
   },
-
   {
     slug: "accounting",
     name: "Accounting",
@@ -448,7 +523,6 @@ export const SUBJECTS: SeedSubject[] = [
       { slug: "auditing", name: "Auditing" },
     ],
   },
-
   {
     slug: "economics",
     name: "Economics",
@@ -463,1081 +537,42 @@ export const SUBJECTS: SeedSubject[] = [
       { slug: "pakistan-economy", name: "Pakistan Economy" },
     ],
   },
-];
-
-/* -------------------------------------------------------------------------- */
-/* Pakistani exams                                                            */
-/* -------------------------------------------------------------------------- */
-
-export const EXAMS: SeedExam[] = [
-  /* ============================== NATIONAL ============================== */
-
   {
-    slug: "css",
-    name: "CSS — Central Superior Services",
-    shortName: "CSS",
+    slug: "general-science",
+    name: "General Science",
     description:
-      "Competitive examination preparation for Pakistan's Central Superior Services.",
-    type: "COMPETITIVE",
-    province: "Federal",
-    isFeatured: true,
-    sortOrder: 1,
-    educationLevels: ["graduation", "post-graduation"],
-    subjects: [
-      "english",
-      "pakistan-affairs",
-      "pakistan-studies",
-      "current-affairs-competitive",
-      "general-knowledge",
-      "everyday-science",
-      "islamiat",
-      "analytical-reasoning",
-      "economics",
+      "Physics, chemistry and biology fundamentals.",
+    subSubjects: [
+      { slug: "biology", name: "Biology" },
+      { slug: "physics", name: "Physics" },
+      { slug: "chemistry", name: "Chemistry" },
     ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 60,
-      negativeMarking: false,
-      marksPerQuestion: 1,
-      passingPercentage: 50,
-    },
-  },
-
-  {
-    slug: "fpsc",
-    name: "FPSC General Recruitment Tests",
-    shortName: "FPSC",
-    description:
-      "Practice questions for Federal Public Service Commission recruitment examinations.",
-    type: "JOB",
-    province: "Federal",
-    isFeatured: true,
-    sortOrder: 2,
-    educationLevels: ["intermediate", "graduation", "post-graduation"],
-    subjects: [
-      "english",
-      "general-knowledge",
-      "pakistan-studies",
-      "islamiat",
-      "current-affairs",
-      "everyday-science",
-      "computer",
-      "analytical-reasoning",
-      "mathematics",
+    topics: [
+      {
+        slug: "biology", name: "Biology", subSubject: "biology",
+        subtopics: [
+          { slug: "cells", name: "Cells" },
+          { slug: "photosynthesis", name: "Photosynthesis" },
+        ],
+      },
+      {
+        slug: "physics", name: "Physics", subSubject: "physics",
+        subtopics: [
+          { slug: "force-motion", name: "Force & Motion" },
+          { slug: "energy", name: "Energy" },
+        ],
+      },
+      {
+        slug: "chemistry", name: "Chemistry", subSubject: "chemistry",
+        subtopics: [
+          { slug: "elements-compounds", name: "Elements & Compounds" },
+          { slug: "acids-bases", name: "Acids & Bases" },
+        ],
+      },
+      { slug: "human-body", name: "Human Body", subSubject: "biology" },
     ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 60,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "nts",
-    name: "NTS General Test",
-    shortName: "NTS",
-    description:
-      "General preparation for National Testing Service Pakistan tests.",
-    type: "JOB",
-    province: "Federal",
-    isFeatured: true,
-    sortOrder: 3,
-    educationLevels: ["matric", "intermediate", "graduation"],
-    subjects: [
-      "english",
-      "mathematics",
-      "analytical-reasoning",
-      "general-knowledge",
-      "computer",
-      "everyday-science",
-      "pakistan-studies",
-      "current-affairs",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 60,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "nat",
-    name: "NTS NAT — National Aptitude Test",
-    shortName: "NAT",
-    description:
-      "Practice for NTS National Aptitude Test for university admissions.",
-    type: "ADMISSION",
-    province: "Federal",
-    isFeatured: true,
-    sortOrder: 4,
-    educationLevels: ["intermediate", "graduation"],
-    subjects: [
-      "english",
-      "mathematics",
-      "analytical-reasoning",
-      "everyday-science",
-      "computer",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 60,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "gat-general",
-    name: "NTS GAT General",
-    shortName: "GAT General",
-    description:
-      "Graduate Assessment Test General preparation for postgraduate admissions.",
-    type: "ADMISSION",
-    province: "Federal",
-    sortOrder: 5,
-    educationLevels: ["graduation", "post-graduation"],
-    subjects: [
-      "english",
-      "mathematics",
-      "analytical-reasoning",
-      "general-knowledge",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 120,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "gat-subject",
-    name: "NTS GAT Subject",
-    shortName: "GAT Subject",
-    description:
-      "Graduate Assessment Test Subject preparation for postgraduate candidates.",
-    type: "ADMISSION",
-    province: "Federal",
-    sortOrder: 6,
-    educationLevels: ["graduation", "post-graduation"],
-    subjects: [
-      "english",
-      "mathematics",
-      "analytical-reasoning",
-      "general-knowledge",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 120,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "hec-usat",
-    name: "HEC USAT — Undergraduate Studies Aptitude Test",
-    shortName: "USAT",
-    description:
-      "Undergraduate Studies Aptitude Test preparation.",
-    type: "ADMISSION",
-    province: "Federal",
-    isFeatured: true,
-    sortOrder: 7,
-    educationLevels: ["intermediate"],
-    subjects: [
-      "english",
-      "mathematics",
-      "analytical-reasoning",
-      "general-knowledge",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 100,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "hec-hat",
-    name: "HEC HAT — Higher Education Aptitude Test",
-    shortName: "HAT",
-    description:
-      "Higher Education Aptitude Test preparation for scholarships and postgraduate opportunities.",
-    type: "ADMISSION",
-    province: "Federal",
-    sortOrder: 8,
-    educationLevels: ["graduation", "post-graduation"],
-    subjects: [
-      "english",
-      "mathematics",
-      "analytical-reasoning",
-      "general-knowledge",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 100,
-      negativeMarking: false,
-    },
-  },
-
-  /* =========================== MEDICAL TESTS ============================ */
-
-  {
-    slug: "mdcat",
-    name: "MDCAT — Medical & Dental College Admission Test",
-    shortName: "MDCAT",
-    description:
-      "Medical and dental college admission test preparation covering Biology, Chemistry, Physics and English.",
-    type: "ADMISSION",
-    isFeatured: true,
-    sortOrder: 10,
-    educationLevels: ["intermediate"],
-    subjects: ["biology", "chemistry", "physics", "english"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 120,
-      negativeMarking: false,
-      marksPerQuestion: 1,
-      passingPercentage: 50,
-    },
-  },
-
-  {
-    slug: "nums",
-    name: "NUMS Entry Test",
-    shortName: "NUMS",
-    description:
-      "National University of Medical Sciences admission test preparation.",
-    type: "ADMISSION",
-    isFeatured: true,
-    sortOrder: 11,
-    educationLevels: ["intermediate"],
-    subjects: ["biology", "chemistry", "physics", "english"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 150,
-      negativeMarking: false,
-      marksPerQuestion: 1,
-      passingPercentage: 50,
-    },
-  },
-
-  /* ========================= ENGINEERING TESTS ========================== */
-
-  {
-    slug: "ecat",
-    name: "ECAT — Engineering College Admission Test",
-    shortName: "ECAT",
-    description:
-      "Engineering admission test preparation covering Mathematics, Physics, Chemistry and English.",
-    type: "ADMISSION",
-    province: "Punjab",
-    isFeatured: true,
-    sortOrder: 12,
-    educationLevels: ["intermediate"],
-    subjects: ["mathematics", "physics", "chemistry", "english"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 100,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "net-engineering",
-    name: "NUST NET Engineering",
-    shortName: "NET Engineering",
-    description:
-      "NUST engineering admission test preparation.",
-    type: "ADMISSION",
-    isFeatured: true,
-    sortOrder: 13,
-    educationLevels: ["intermediate"],
-    subjects: ["mathematics", "physics", "chemistry", "english"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 180,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "giki-entry-test",
-    name: "GIKI Admission Test",
-    shortName: "GIKI",
-    description:
-      "GIKI undergraduate admission test preparation.",
-    type: "ADMISSION",
-    province: "Khyber Pakhtunkhwa",
-    sortOrder: 14,
-    educationLevels: ["intermediate"],
-    subjects: ["mathematics", "physics", "english", "analytical-reasoning"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 120,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "pieas-entry-test",
-    name: "PIEAS Admission Test",
-    shortName: "PIEAS",
-    description:
-      "PIEAS undergraduate admission test preparation.",
-    type: "ADMISSION",
-    province: "Federal",
-    sortOrder: 15,
-    educationLevels: ["intermediate"],
-    subjects: ["mathematics", "physics", "chemistry", "english"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 120,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "comsats-entry-test",
-    name: "COMSATS Admission Test",
-    shortName: "COMSATS",
-    description:
-      "COMSATS undergraduate admission test preparation.",
-    type: "ADMISSION",
-    sortOrder: 16,
-    educationLevels: ["intermediate"],
-    subjects: [
-      "mathematics",
-      "english",
-      "analytical-reasoning",
-      "physics",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 120,
-      negativeMarking: false,
-    },
-  },
-
-  /* ============================== LAW ================================== */
-
-  {
-    slug: "lat",
-    name: "HEC LAT — Law Admission Test",
-    shortName: "LAT",
-    description:
-      "Law Admission Test preparation for undergraduate law admissions.",
-    type: "ADMISSION",
-    province: "Federal",
-    isFeatured: true,
-    sortOrder: 20,
-    educationLevels: ["intermediate"],
-    subjects: [
-      "english",
-      "pakistan-studies",
-      "islamiat",
-      "general-knowledge",
-      "current-affairs",
-      "analytical-reasoning",
-      "law",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 90,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "law-gat",
-    name: "HEC LAW-GAT",
-    shortName: "LAW-GAT",
-    description:
-      "Law Graduate Assessment Test preparation.",
-    type: "COMPETITIVE",
-    province: "Federal",
-    isFeatured: true,
-    sortOrder: 21,
-    educationLevels: ["graduation", "post-graduation"],
-    subjects: ["law", "english", "pakistan-studies", "general-knowledge"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 90,
-      negativeMarking: false,
-    },
-  },
-
-  /* ========================== PROVINCIAL =============================== */
-
-  {
-    slug: "ppsc",
-    name: "PPSC — Punjab Public Service Commission",
-    shortName: "PPSC",
-    description:
-      "Punjab Public Service Commission recruitment and competitive test preparation.",
-    type: "JOB",
-    province: "Punjab",
-    isFeatured: true,
-    sortOrder: 30,
-    educationLevels: ["intermediate", "graduation", "post-graduation"],
-    subjects: [
-      "english",
-      "pakistan-studies",
-      "islamiat",
-      "general-knowledge",
-      "current-affairs",
-      "everyday-science",
-      "computer",
-      "mathematics",
-      "analytical-reasoning",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 120,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "spsc",
-    name: "SPSC — Sindh Public Service Commission",
-    shortName: "SPSC",
-    description:
-      "Sindh Public Service Commission recruitment and competitive test preparation.",
-    type: "JOB",
-    province: "Sindh",
-    isFeatured: true,
-    sortOrder: 31,
-    educationLevels: ["intermediate", "graduation", "post-graduation"],
-    subjects: [
-      "english",
-      "pakistan-studies",
-      "islamiat",
-      "general-knowledge",
-      "current-affairs",
-      "everyday-science",
-      "computer",
-      "mathematics",
-      "analytical-reasoning",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 120,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "kppsc",
-    name: "KPPSC — Khyber Pakhtunkhwa Public Service Commission",
-    shortName: "KPPSC",
-    description:
-      "KPPSC recruitment and competitive examination preparation.",
-    type: "JOB",
-    province: "Khyber Pakhtunkhwa",
-    sortOrder: 32,
-    educationLevels: ["intermediate", "graduation", "post-graduation"],
-    subjects: [
-      "english",
-      "pakistan-studies",
-      "islamiat",
-      "general-knowledge",
-      "current-affairs",
-      "everyday-science",
-      "computer",
-      "mathematics",
-      "analytical-reasoning",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 120,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "bpsc",
-    name: "BPSC — Balochistan Public Service Commission",
-    shortName: "BPSC",
-    description:
-      "BPSC recruitment and competitive examination preparation.",
-    type: "JOB",
-    province: "Balochistan",
-    sortOrder: 33,
-    educationLevels: ["intermediate", "graduation", "post-graduation"],
-    subjects: [
-      "english",
-      "pakistan-studies",
-      "islamiat",
-      "general-knowledge",
-      "current-affairs",
-      "everyday-science",
-      "computer",
-      "mathematics",
-      "analytical-reasoning",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 120,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "pms-punjab",
-    name: "PMS Punjab",
-    shortName: "PMS Punjab",
-    description:
-      "Punjab Provincial Management Service competitive examination preparation.",
-    type: "COMPETITIVE",
-    province: "Punjab",
-    isFeatured: true,
-    sortOrder: 34,
-    educationLevels: ["graduation", "post-graduation"],
-    subjects: [
-      "english",
-      "pakistan-affairs",
-      "pakistan-studies",
-      "current-affairs",
-      "general-knowledge",
-      "islamiat",
-      "everyday-science",
-      "analytical-reasoning",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 120,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "pms-sindh",
-    name: "PMS Sindh / CCE",
-    shortName: "SPSC CCE",
-    description:
-      "Sindh Public Service Commission Combined Competitive Examination preparation.",
-    type: "COMPETITIVE",
-    province: "Sindh",
-    isFeatured: true,
-    sortOrder: 35,
-    educationLevels: ["graduation", "post-graduation"],
-    subjects: [
-      "english",
-      "pakistan-affairs",
-      "pakistan-studies",
-      "current-affairs",
-      "general-knowledge",
-      "islamiat",
-      "everyday-science",
-      "analytical-reasoning",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 120,
-      negativeMarking: false,
-    },
-  },
-
-  /* ============================= TEACHING ============================== */
-
-  {
-    slug: "pst",
-    name: "PST — Primary School Teacher",
-    shortName: "PST",
-    description:
-      "Primary School Teacher recruitment test preparation.",
-    type: "JOB",
-    province: "Sindh",
-    isFeatured: true,
-    sortOrder: 40,
-    educationLevels: ["primary", "matric", "intermediate", "graduation"],
-    subjects: [
-      "english",
-      "mathematics",
-      "everyday-science",
-      "islamiat",
-      "pakistan-studies",
-      "general-knowledge",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 90,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "jest",
-    name: "JEST — Junior Elementary School Teacher",
-    shortName: "JEST",
-    description:
-      "Junior Elementary School Teacher recruitment test preparation.",
-    type: "JOB",
-    province: "Sindh",
-    isFeatured: true,
-    sortOrder: 41,
-    educationLevels: ["matric", "intermediate", "graduation"],
-    subjects: [
-      "english",
-      "mathematics",
-      "everyday-science",
-      "islamiat",
-      "pakistan-studies",
-      "computer",
-      "general-knowledge",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 90,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "teaching-recruitment",
-    name: "Teaching Recruitment Tests",
-    shortName: "Teaching",
-    description:
-      "General preparation for teacher recruitment examinations in Pakistan.",
-    type: "JOB",
-    sortOrder: 42,
-    educationLevels: ["intermediate", "graduation", "post-graduation"],
-    subjects: [
-      "english",
-      "mathematics",
-      "everyday-science",
-      "computer",
-      "pakistan-studies",
-      "islamiat",
-      "general-knowledge",
-      "analytical-reasoning",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 90,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "lecturer",
-    name: "Lecturer Recruitment Test",
-    shortName: "Lecturer",
-    description:
-      "Lecturer and college teacher recruitment test preparation.",
-    type: "JOB",
-    sortOrder: 43,
-    educationLevels: ["graduation", "post-graduation"],
-    subjects: [
-      "english",
-      "general-knowledge",
-      "current-affairs",
-      "pakistan-studies",
-      "islamiat",
-      "analytical-reasoning",
-      "computer",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 120,
-      negativeMarking: false,
-    },
-  },
-
-  /* ============================ UNIVERSITY ============================= */
-
-  {
-    slug: "nust-net",
-    name: "NUST NET",
-    shortName: "NET",
-    description:
-      "NUST National Entrance Test preparation for undergraduate admissions.",
-    type: "ADMISSION",
-    isFeatured: true,
-    sortOrder: 50,
-    educationLevels: ["intermediate"],
-    subjects: [
-      "mathematics",
-      "physics",
-      "chemistry",
-      "biology",
-      "english",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 180,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "fast-entry-test",
-    name: "FAST-NUCES Admission Test",
-    shortName: "FAST",
-    description:
-      "FAST-NUCES undergraduate admission test preparation.",
-    type: "ADMISSION",
-    isFeatured: true,
-    sortOrder: 51,
-    educationLevels: ["intermediate"],
-    subjects: ["mathematics", "english", "analytical-reasoning", "computer"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 120,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "air-university-entry-test",
-    name: "Air University Entry Test",
-    shortName: "Air University",
-    description:
-      "Air University undergraduate admission test preparation.",
-    type: "ADMISSION",
-    sortOrder: 52,
-    educationLevels: ["intermediate"],
-    subjects: [
-      "mathematics",
-      "english",
-      "physics",
-      "analytical-reasoning",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 120,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "bahria-university-entry-test",
-    name: "Bahria University Entry Test",
-    shortName: "Bahria",
-    description:
-      "Bahria University admission test preparation.",
-    type: "ADMISSION",
-    sortOrder: 53,
-    educationLevels: ["intermediate"],
-    subjects: [
-      "english",
-      "mathematics",
-      "analytical-reasoning",
-      "general-knowledge",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 120,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "ned-entry-test",
-    name: "NED University Entry Test",
-    shortName: "NED",
-    description:
-      "NED University undergraduate admission test preparation.",
-    type: "ADMISSION",
-    province: "Sindh",
-    sortOrder: 54,
-    educationLevels: ["intermediate"],
-    subjects: ["mathematics", "physics", "chemistry", "english"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 120,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "muet-entry-test",
-    name: "MUET Entry Test",
-    shortName: "MUET",
-    description:
-      "Mehran University admission test preparation.",
-    type: "ADMISSION",
-    province: "Sindh",
-    sortOrder: 55,
-    educationLevels: ["intermediate"],
-    subjects: ["mathematics", "physics", "chemistry", "english"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 100,
-      timeLimitMinutes: 120,
-      negativeMarking: false,
-    },
-  },
-
-  /* ========================== GENERAL PRACTICE ========================= */
-
-  {
-    slug: "university-entry-test",
-    name: "University Entry Test",
-    shortName: "Entry Test",
-    description:
-      "General university admission test practice.",
-    type: "ADMISSION",
-    isFeatured: true,
-    sortOrder: 60,
-    educationLevels: ["intermediate", "graduation"],
-    subjects: [
-      "english",
-      "mathematics",
-      "physics",
-      "chemistry",
-      "biology",
-      "analytical-reasoning",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 60,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "admission-test",
-    name: "Admission Tests — General",
-    shortName: "Admission",
-    description:
-      "General admission and scholarship aptitude test practice.",
-    type: "ADMISSION",
-    sortOrder: 61,
-    educationLevels: ["matric", "intermediate", "graduation"],
-    subjects: [
-      "english",
-      "mathematics",
-      "general-knowledge",
-      "analytical-reasoning",
-      "everyday-science",
-    ],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 60,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "english-grammar",
-    name: "English Grammar Practice",
-    shortName: "English Grammar",
-    description:
-      "English grammar and vocabulary practice.",
-    type: "EDUCATIONAL",
-    isFeatured: true,
-    sortOrder: 70,
-    educationLevels: ["middle", "matric", "intermediate", "graduation"],
-    subjects: ["english"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 45,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "general-knowledge",
-    name: "General Knowledge Practice",
-    shortName: "General Knowledge",
-    description:
-      "General knowledge practice for Pakistani students and test candidates.",
-    type: "GENERAL",
-    isFeatured: true,
-    sortOrder: 71,
-    educationLevels: ["middle", "matric", "intermediate", "graduation"],
-    subjects: ["general-knowledge", "everyday-science"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 45,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "mathematics-practice",
-    name: "Mathematics Practice",
-    shortName: "Mathematics",
-    description:
-      "Mathematics practice from basic arithmetic to quantitative aptitude.",
-    type: "EDUCATIONAL",
-    sortOrder: 72,
-    educationLevels: ["middle", "matric", "intermediate", "graduation"],
-    subjects: ["mathematics"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 60,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "science-practice",
-    name: "Science Practice",
-    shortName: "Science",
-    description:
-      "General science practice covering Biology, Chemistry and Physics.",
-    type: "EDUCATIONAL",
-    sortOrder: 73,
-    educationLevels: ["middle", "matric", "intermediate"],
-    subjects: ["physics", "chemistry", "biology", "everyday-science"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 60,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "computer-practice",
-    name: "Computer Practice",
-    shortName: "Computer",
-    description:
-      "Computer science and information technology practice.",
-    type: "EDUCATIONAL",
-    sortOrder: 74,
-    educationLevels: ["matric", "intermediate", "graduation"],
-    subjects: ["computer"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 45,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "islamiat-practice",
-    name: "Islamiat Practice",
-    shortName: "Islamiat",
-    description:
-      "Islamiat practice for school, college and competitive examinations.",
-    type: "EDUCATIONAL",
-    sortOrder: 75,
-    educationLevels: ["primary", "middle", "matric", "intermediate", "graduation"],
-    subjects: ["islamiat"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 45,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "pakistan-studies-practice",
-    name: "Pakistan Studies Practice",
-    shortName: "Pakistan Studies",
-    description:
-      "Pakistan Studies practice covering history, geography and constitution.",
-    type: "EDUCATIONAL",
-    sortOrder: 76,
-    educationLevels: ["middle", "matric", "intermediate", "graduation"],
-    subjects: ["pakistan-studies", "pakistan-affairs"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 45,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "current-affairs-practice",
-    name: "Current Affairs Practice",
-    shortName: "Current Affairs",
-    description:
-      "Current affairs practice for Pakistani job and competitive examinations.",
-    type: "GENERAL",
-    sortOrder: 77,
-    educationLevels: ["intermediate", "graduation", "post-graduation"],
-    subjects: ["current-affairs", "current-affairs-competitive"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 45,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "analytical-reasoning-practice",
-    name: "Analytical Reasoning Practice",
-    shortName: "Reasoning",
-    description:
-      "Logical, analytical and aptitude reasoning practice.",
-    type: "EDUCATIONAL",
-    sortOrder: 78,
-    educationLevels: ["matric", "intermediate", "graduation"],
-    subjects: ["analytical-reasoning"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 45,
-      negativeMarking: false,
-    },
-  },
-
-  {
-    slug: "law-practice",
-    name: "Law Practice",
-    shortName: "Law",
-    description:
-      "Law and legal aptitude MCQ practice.",
-    type: "EDUCATIONAL",
-    sortOrder: 79,
-    educationLevels: ["graduation", "post-graduation"],
-    subjects: ["law"],
-    configuration: {
-      mode: "RANDOM",
-      defaultQuestionCount: 50,
-      timeLimitMinutes: 60,
-      negativeMarking: false,
-    },
   },
 ];
-
-/* -------------------------------------------------------------------------- */
-/* Site defaults                                                              */
-/* -------------------------------------------------------------------------- */
 
 export const SOCIAL_LINKS_DEFAULT = {
   facebook: "",
@@ -1560,11 +595,7 @@ export const SITE_SETTINGS_DEFAULT = [
       address: "",
     },
   },
-  {
-    key: "site.social",
-    group: "social",
-    value: SOCIAL_LINKS_DEFAULT,
-  },
+  { key: "site.social", group: "social", value: SOCIAL_LINKS_DEFAULT },
   {
     key: "site.features",
     group: "features",
