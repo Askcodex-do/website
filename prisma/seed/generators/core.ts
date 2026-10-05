@@ -61,7 +61,10 @@ export function buildOptions(
     const j = Math.floor(rand() * (i + 1));
     [four[i], four[j]] = [four[j], four[i]];
   }
-  return { options: four, correct: four.indexOf(String(correctValue)) };
+  return {
+  options: four,
+  correct: four.indexOf(String(correctValue)),
+};
 }
 
 /** Spread generated questions across EASY/MEDIUM/HARD by position. */
