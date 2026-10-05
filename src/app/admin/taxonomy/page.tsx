@@ -6,7 +6,16 @@ export const dynamic = "force-dynamic";
 
 export default async function TaxonomyPage() {
   await requireAdmin("taxonomy:write");
-  const { exams, subjects, topics, levels } = await listTaxonomyForAdmin();
+  const {
+    exams,
+    subjects,
+    topics,
+    levels,
+    categories,
+    organizations,
+    subSubjects,
+    subtopics,
+  } = await listTaxonomyForAdmin();
 
   return (
     <section aria-labelledby="taxonomy-heading" className="space-y-8">
@@ -77,6 +86,81 @@ export default async function TaxonomyPage() {
               <p className="font-medium">{topic.name}</p>
               <p className="text-xs text-[var(--text-muted)]">
                 {topic.subject.name} · /{topic.slug}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div>
+        <h3 className="mb-2 text-lg font-semibold">
+          Categories ({categories.length})
+        </h3>
+        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {categories.map((category) => (
+            <li
+              key={category.id}
+              className="rounded-lg border border-[var(--border)] p-3 text-sm"
+            >
+              <p className="font-medium">{category.name}</p>
+              <p className="text-xs text-[var(--text-muted)]">/{category.slug}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div>
+        <h3 className="mb-2 text-lg font-semibold">
+          Organizations ({organizations.length})
+        </h3>
+        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {organizations.map((organization) => (
+            <li
+              key={organization.id}
+              className="rounded-lg border border-[var(--border)] p-3 text-sm"
+            >
+              <p className="font-medium">{organization.name}</p>
+              <p className="text-xs text-[var(--text-muted)]">
+                {organization.shortName ? `${organization.shortName} · ` : ""}
+                /{organization.slug}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div>
+        <h3 className="mb-2 text-lg font-semibold">
+          Sub-subjects ({subSubjects.length})
+        </h3>
+        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {subSubjects.map((subSubject) => (
+            <li
+              key={subSubject.id}
+              className="rounded-lg border border-[var(--border)] p-3 text-sm"
+            >
+              <p className="font-medium">{subSubject.name}</p>
+              <p className="text-xs text-[var(--text-muted)]">
+                {subSubject.subject.name} · /{subSubject.slug}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div>
+        <h3 className="mb-2 text-lg font-semibold">
+          Subtopics ({subtopics.length})
+        </h3>
+        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {subtopics.map((subtopic) => (
+            <li
+              key={subtopic.id}
+              className="rounded-lg border border-[var(--border)] p-3 text-sm"
+            >
+              <p className="font-medium">{subtopic.name}</p>
+              <p className="text-xs text-[var(--text-muted)]">
+                {subtopic.topic.name} · /{subtopic.slug}
               </p>
             </li>
           ))}

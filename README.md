@@ -63,11 +63,19 @@ special-cases an exam.
 
 ## Feature overview
 
-- **Metadata-driven question bank** with subjects, topics, exams, education
-  levels, difficulty, province, year and tags.
-- **Question Selection Engine** supporting exam, subject, topic, education level,
-  difficulty, province, year, limit, mode (static/random) and exclusions.
+- **Metadata-driven question bank** with subjects, topics, sub-subjects,
+  subtopics, exams, categories, organizations, education levels, difficulty,
+  province, year, tags and a verification workflow.
+- **Question Selection Engine** supporting exam, category, organization, subject,
+  sub-subject, topic, subtopic, education level, difficulty, province, year,
+  limit, mode (static/random) and exclusions.
 - **Static and random display modes**, configured per exam in the database.
+- **Previous papers** — sourced past papers with a `verified` flag, so authentic
+  papers and practice reconstructions are always distinguishable.
+- **Preparation pages** — reusable, template-driven overview/eligibility/syllabus/
+  pattern/strategy/FAQ pages per exam, generated from data.
+- **Paper generator** — practice, subject, topic, difficulty, mock and guess
+  papers built from the same engine (never presented as official papers).
 - **Individual MCQ pages** with like, bookmark, share (WhatsApp/Facebook/X/
   LinkedIn/native), report, copy link and next question. The correct answer is
   never sent to the browser before the user answers.
@@ -78,10 +86,12 @@ special-cases an exam.
 - **Authentication**: registration, login, logout, forgot/reset password, email
   verification, DB-backed sessions, bcrypt hashing and role-based access control.
 - **User dashboard**: totals, accuracy, subject/exam performance and recent activity.
-- **Admin panel**: question CRUD, publish/archive, taxonomy, users, reports,
+- **Admin panel**: question CRUD, publish/archive, verification review, duplicate
+  detection, taxonomy, previous papers, preparation pages, users, reports,
   contact messages, settings (identity, social, features, SEO) and bulk import.
 - **Bulk CSV/Excel import** with validation, duplicate detection and error reporting.
-- **Search** across questions, exams, subjects and topics.
+- **Search** across questions, exams, subjects, topics, categories, organizations,
+  sub-subjects and previous papers.
 - **Automatic SEO**: titles, descriptions, canonicals, Open Graph, Twitter cards,
   JSON-LD structured data, breadcrumbs, sitemap index, robots.txt and slugs.
 - **Responsive** from 320px phones to large TVs; accessible, semantic markup.
@@ -191,12 +201,15 @@ npm run db:reset       # drop, migrate and re-seed
 
 The seed generates questions from parameterised templates in
 `prisma/seed/generators/`, then links every question to the exams, subjects,
-topics and education levels defined in `prisma/seed/taxonomy.ts`. A fresh seed
-produces roughly:
+topics and education levels defined in `prisma/seed/taxonomy.ts` and
+`prisma/seed/taxonomy-pakistan.ts`. It also seeds previous papers, preparation
+pages and paper templates. A fresh seed produces roughly:
 
-- 13 exams, 10 subjects, 43 topics, 6 education levels
+- Pakistan exam hierarchy: categories, organizations and 13+ exams
+- 10 subjects, 43 topics, 6 education levels
 - 11,000+ questions and 44,000+ options
 - 50,000+ question-to-exam links
+- Previous papers, preparation pages and paper templates
 
 Key indexes cover exam, subject, topic, education level, difficulty, status and
 slug, so the engine stays fast as the bank grows.
@@ -206,7 +219,8 @@ slug, so the engine stays fast as the bank grows.
 ## Question Selection Engine
 
 `src/services/question-selection.ts` is the single source of truth for choosing
-questions. It is used by MCQ pages, quiz pages, search and the dashboard.
+questions. It is used by MCQ pages, quiz pages, search, the paper generator and
+the dashboard.
 
 ```ts
 import { getQuestions } from "@/services/question-selection";
@@ -216,15 +230,27 @@ await getQuestions({ exam: "pst", mode: "static", limit: 20 });
 
 // English Grammar draws randomly from its pool.
 await getQuestions({ subject: "english-grammar", mode: "random", limit: 20 });
+
+// Fail closed: an unknown filter returns no questions rather than the whole bank.
+await getQuestions({ subject: "typo-subject", onUnknownFilter: "empty" });
 ```
 
-Supported filters: `exam`, `subject`, `topic`, `educationLevel`, `difficulty`,
-`province`, `year`, `excludeIds`, `limit`, `mode`.
+Supported filters: `exam`, `category`, `organization`, `subject`, `subSubject`,
+`topic`, `subtopic`, `educationLevel`, `difficulty`, `province`, `year`,
+`excludeIds`, `limit`, `mode`.
 
 When an exam is selected, the engine intersects the requested filters with the
 exam's configured subjects and education levels, so an exam can never surface an
 unrelated question. Unknown exams resolve to an empty pool rather than leaking
-the whole bank.
+the whole bank, and callers can opt into `onUnknownFilter: "empty"` to fail
+closed on any unresolved taxonomy filter.
+
+### Paper generator
+
+`src/services/paper-generator.ts` builds saved, reproducible practice papers
+(subject, topic, difficulty, mock, guess and random) from the same engine. Mock
+papers allocate questions across an exam's subjects using its blueprint weights.
+Generated papers are always labelled as practice — never as official papers.
 
 ---
 
@@ -234,8 +260,14 @@ Sign in with an admin account and open `/admin`.
 
 - **Overview** — counts and recent activity
 - **Questions** — search, filter, paginate, create, edit, publish, archive
+- **Verification** — review queue for unverified/flagged questions, with a
+  source/reference requirement before a question can be marked verified
+- **Duplicates** — exact and near-duplicate detection across the question bank
 - **Bulk import** — CSV/Excel upload with validation and preview
-- **Taxonomy** — exams, subjects, topics, education levels and their question counts
+- **Taxonomy** — exams, categories, organizations, subjects, sub-subjects, topics,
+  subtopics, education levels and their question counts
+- **Previous papers** — sourced past papers (verified vs reconstructed)
+- **Preparation** — per-exam overview/eligibility/syllabus/pattern/strategy/FAQ pages
 - **Users** — search, change role and status
 - **Reports** — review reported questions
 - **Messages** — contact form submissions

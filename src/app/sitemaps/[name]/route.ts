@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { siteUrl } from "@/lib/env";
+import { PREP_TYPE_SLUG } from "@/lib/prep";
 
 export const revalidate = 3600;
 
@@ -55,6 +56,38 @@ export async function GET(
       ...topics.map((t) => ({
         loc: `${siteUrl}/topics/${t.slug}`,
         lastmod: t.updatedAt,
+        priority: 0.6,
+      })),
+    );
+  } else if (slug === "prep-pages") {
+    const pages = await db.prepPage.findMany({
+      where: { isPublished: true, exam: { isActive: true } },
+      select: {
+        type: true,
+        updatedAt: true,
+        exam: { select: { slug: true } },
+      },
+      orderBy: { slug: "asc" },
+    });
+    urls.push(
+      ...pages
+        .filter((p) => p.exam)
+        .map((p) => ({
+          loc: `${siteUrl}/exams/${p.exam!.slug}/preparation/${PREP_TYPE_SLUG[p.type]}`,
+          lastmod: p.updatedAt,
+          priority: 0.6,
+        })),
+    );
+  } else if (slug === "previous-papers") {
+    const papers = await db.previousPaper.findMany({
+      where: { isPublished: true },
+      select: { slug: true, updatedAt: true },
+      orderBy: { year: "desc" },
+    });
+    urls.push(
+      ...papers.map((p) => ({
+        loc: `${siteUrl}/previous-papers/${p.slug}`,
+        lastmod: p.updatedAt,
         priority: 0.6,
       })),
     );

@@ -27,6 +27,7 @@ export async function getUserQuestionFlags(
 const QUESTION_INCLUDE = {
   options: { orderBy: { sortOrder: "asc" as const } },
   subjects: { include: { subject: { select: { slug: true, name: true } } } },
+  subSubjects: { include: { subSubject: { select: { slug: true, name: true } } } },
   topics: { include: { topic: { select: { slug: true, name: true } } } },
   exams: { include: { exam: { select: { slug: true, name: true } } } },
 };

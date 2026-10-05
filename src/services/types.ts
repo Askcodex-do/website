@@ -1,10 +1,12 @@
 import type {
+  ContentOrigin,
   Difficulty,
   ExamMode,
   ExamType,
   QuestionLanguage,
   QuestionStatus,
   QuestionType,
+  VerificationStatus,
 } from "@prisma/client";
 
 /** A question as exposed to the public — never includes the correct answer. */
@@ -25,6 +27,8 @@ export interface PublicQuestion {
   type: QuestionType;
   language: QuestionLanguage;
   status: QuestionStatus;
+  verification: VerificationStatus;
+  origin: ContentOrigin;
   year: number | null;
   province: string | null;
   likeCount: number;
@@ -34,6 +38,7 @@ export interface PublicQuestion {
   timesCorrect: number;
   options: PublicQuestionOption[];
   subject: { slug: string; name: string } | null;
+  subSubject: { slug: string; name: string } | null;
   topic: { slug: string; name: string } | null;
   exams: Array<{ slug: string; name: string }>;
 }
@@ -92,8 +97,12 @@ export interface EducationLevelSummary {
 /** Filters accepted by the Question Selection Engine. */
 export interface QuestionFilters {
   exam?: string;
+  category?: string;
+  organization?: string;
   subject?: string;
+  subSubject?: string;
   topic?: string;
+  subtopic?: string;
   educationLevel?: string;
   difficulty?: Difficulty;
   province?: string;
@@ -134,8 +143,12 @@ export interface SelectionResult {
   config: ResolvedExamConfig | null;
   appliedFilters: {
     exam?: string;
+    category?: string;
+    organization?: string;
     subject?: string;
+    subSubject?: string;
     topic?: string;
+    subtopic?: string;
     educationLevel?: string;
     difficulty?: Difficulty;
     province?: string;

@@ -6,6 +6,7 @@ const RESOURCE_LINKS = [
   { href: "/mcqs", label: "All MCQs" },
   { href: "/topics", label: "Topics" },
   { href: "/quiz", label: "Take a Quiz" },
+  { href: "/previous-papers", label: "Previous Papers" },
   { href: "/search", label: "Search" },
   { href: "/sitemap", label: "Sitemap" },
   { href: "/faq", label: "FAQ" },

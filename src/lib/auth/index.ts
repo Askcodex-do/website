@@ -70,27 +70,58 @@ export async function destroySession(): Promise<void> {
   const store = await cookies();
   const raw = store.get(SESSION_COOKIE)?.value;
   if (raw) {
-    const tokenHash = hashSessionToken(raw);
-    await db.session
-      .updateMany({
-        where: { tokenHash, revokedAt: null },
-        data: { revokedAt: new Date() },
-      })
-      .catch(() => undefined);
+    await revokeSessionByToken(raw);
   }
+  // Delete with the same path/attributes used when setting, so the browser
+  // cannot keep a stale cookie that would resurrect the session on refresh.
+  store.set(SESSION_COOKIE, "", {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
   store.delete(SESSION_COOKIE);
 }
 
 /**
- * Resolve the current user from the session cookie. Cached per-request so a page
- * with many server components issues at most one session lookup.
+ * Revoke a single session by its raw token. This is the authoritative half of
+ * logout: once revoked, resolveSessionUser() rejects the token even if a client
+ * retained the cookie, so a refresh cannot restore the signed-in state.
  */
-export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
-  const store = await cookies();
-  const raw = store.get(SESSION_COOKIE)?.value;
-  if (!raw) return null;
+export async function revokeSessionByToken(rawToken: string): Promise<void> {
+  const tokenHash = hashSessionToken(rawToken);
+  await db.session
+    .updateMany({
+      where: { tokenHash, revokedAt: null },
+      data: { revokedAt: new Date() },
+    })
+    .catch(() => undefined);
+}
 
-  const tokenHash = hashSessionToken(raw);
+/** Revoke every active session for a user (password change, "sign out all"). */
+export async function destroyAllSessions(userId: string): Promise<void> {
+  await db.session.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+}
+
+/**
+ * Resolve a session token (raw cookie value) to a user. Kept separate from the
+ * cookie plumbing so the full lifecycle — including revocation on logout — can
+ * be tested directly against the database.
+ *
+ * A session is rejected when it is unknown, revoked, expired, or belongs to a
+ * non-active user, which is what makes logout authoritative even if the browser
+ * still holds a copy of the cookie.
+ */
+export async function resolveSessionUser(
+  rawToken: string | undefined | null,
+): Promise<SessionUser | null> {
+  if (!rawToken) return null;
+
+  const tokenHash = hashSessionToken(rawToken);
   const session = await db.session.findUnique({
     where: { tokenHash },
     include: {
@@ -116,6 +147,15 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
       permissions: session.user.role.permissions,
     },
   };
+}
+
+/**
+ * Resolve the current user from the session cookie. Cached per-request so a page
+ * with many server components issues at most one session lookup.
+ */
+export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
+  const store = await cookies();
+  return resolveSessionUser(store.get(SESSION_COOKIE)?.value);
 });
 
 export async function requireUser(): Promise<SessionUser> {

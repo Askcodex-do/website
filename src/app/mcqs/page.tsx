@@ -3,7 +3,16 @@ import type { Metadata } from "next";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo/metadata";
 import { jsonLdScript, itemListJsonLd } from "@/lib/seo/structured-data";
 import { getQuestions } from "@/services/question-selection";
-import { listEducationLevels, listExams, listSubjects, listTopics } from "@/services/taxonomy";
+import {
+  listCategories,
+  listEducationLevels,
+  listExams,
+  listOrganizations,
+  listSubSubjects,
+  listSubjects,
+  listSubtopics,
+  listTopics,
+} from "@/services/taxonomy";
 import { PageShell, PageHeader } from "@/components/layout/container";
 import { Breadcrumbs, EmptyState } from "@/components/ui";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -17,8 +26,12 @@ const PAGE_SIZE = 24;
 
 interface SearchParams {
   exam?: string;
+  category?: string;
+  organization?: string;
   subject?: string;
+  subSubject?: string;
   topic?: string;
+  subtopic?: string;
   educationLevel?: string;
   difficulty?: string;
   page?: string;
@@ -30,11 +43,11 @@ export async function generateMetadata({
   searchParams: Promise<SearchParams>;
 }): Promise<Metadata> {
   const sp = await searchParams;
-  const parts = [sp.exam, sp.subject, sp.topic].filter(Boolean);
+  const parts = [sp.exam, sp.category, sp.subject, sp.topic].filter(Boolean);
   const label = parts.length > 0 ? parts.join(" · ") : "All";
   return buildMetadata({
     title: `${label} MCQs – Practice Questions with Answers`,
-    description: `Browse ${label} multiple-choice questions with explanations. Filter by exam, subject, topic, education level and difficulty.`,
+    description: `Browse ${label} multiple-choice questions with explanations. Filter by exam, category, subject, topic, education level and difficulty.`,
     path: "/mcqs",
     keywords: ["MCQs", "practice questions", "MCQ with answers"],
     // Filtered views are useful to users but should not compete with the
@@ -54,11 +67,25 @@ export default async function McqsPage({
     ? (sp.difficulty as Difficulty)
     : undefined;
 
-  const [result, exams, subjects, levels, topics] = await Promise.all([
+  const [
+    result,
+    exams,
+    categories,
+    organizations,
+    subjects,
+    subSubjects,
+    levels,
+    topics,
+    subtopics,
+  ] = await Promise.all([
     getQuestions({
       exam: sp.exam,
+      category: sp.category,
+      organization: sp.organization,
       subject: sp.subject,
+      subSubject: sp.subSubject,
       topic: sp.topic,
+      subtopic: sp.subtopic,
       educationLevel: sp.educationLevel,
       difficulty,
       page,
@@ -66,9 +93,13 @@ export default async function McqsPage({
       mode: "static",
     }),
     listExams(),
+    listCategories(),
+    listOrganizations(),
     listSubjects(),
+    listSubSubjects(sp.subject),
     listEducationLevels(),
     listTopics(sp.subject ? { subjectSlug: sp.subject } : undefined),
+    listSubtopics(sp.topic),
   ]);
 
   const totalPages = Math.ceil(result.total / PAGE_SIZE);
@@ -80,8 +111,12 @@ export default async function McqsPage({
   const buildHref = (target: number) => {
     const params = new URLSearchParams();
     if (sp.exam) params.set("exam", sp.exam);
+    if (sp.category) params.set("category", sp.category);
+    if (sp.organization) params.set("organization", sp.organization);
     if (sp.subject) params.set("subject", sp.subject);
+    if (sp.subSubject) params.set("subSubject", sp.subSubject);
     if (sp.topic) params.set("topic", sp.topic);
+    if (sp.subtopic) params.set("subtopic", sp.subtopic);
     if (sp.educationLevel) params.set("educationLevel", sp.educationLevel);
     if (sp.difficulty) params.set("difficulty", sp.difficulty);
     if (target > 1) params.set("page", String(target));
@@ -116,6 +151,21 @@ export default async function McqsPage({
         action="/mcqs"
         fields={[
           {
+            name: "category",
+            label: "Category",
+            value: sp.category ?? "",
+            options: categories.map((c) => ({ value: c.slug, label: c.name })),
+          },
+          {
+            name: "organization",
+            label: "Organization",
+            value: sp.organization ?? "",
+            options: organizations.map((o) => ({
+              value: o.slug,
+              label: o.shortName ?? o.name,
+            })),
+          },
+          {
             name: "exam",
             label: "Exam",
             value: sp.exam ?? "",
@@ -128,10 +178,22 @@ export default async function McqsPage({
             options: subjects.map((s) => ({ value: s.slug, label: s.name })),
           },
           {
+            name: "subSubject",
+            label: "Sub-subject",
+            value: sp.subSubject ?? "",
+            options: subSubjects.map((s) => ({ value: s.slug, label: s.name })),
+          },
+          {
             name: "topic",
             label: "Topic",
             value: sp.topic ?? "",
             options: topics.map((t) => ({ value: t.slug, label: t.name })),
+          },
+          {
+            name: "subtopic",
+            label: "Subtopic",
+            value: sp.subtopic ?? "",
+            options: subtopics.map((t) => ({ value: t.slug, label: t.name })),
           },
           {
             name: "educationLevel",

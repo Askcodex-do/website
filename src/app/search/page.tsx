@@ -41,7 +41,11 @@ export default async function SearchPage({
     (results.questions.length > 0 ||
       results.exams.length > 0 ||
       results.subjects.length > 0 ||
-      results.topics.length > 0);
+      results.topics.length > 0 ||
+      results.categories.length > 0 ||
+      results.organizations.length > 0 ||
+      results.subSubjects.length > 0 ||
+      results.previousPapers.length > 0);
 
   return (
     <PageShell>
@@ -113,6 +117,78 @@ export default async function SearchPage({
                         {" "}
                         · {topic.subjectName}
                       </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          ) : null}
+
+          {results!.categories.length > 0 ? (
+            <Section title="Categories">
+              <ul className="flex flex-wrap gap-2">
+                {results!.categories.map((category) => (
+                  <li key={category.slug}>
+                    <Link
+                      href={`/exams?category=${category.slug}`}
+                      className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm hover:border-brand-300 hover:bg-brand-50"
+                    >
+                      {category.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          ) : null}
+
+          {results!.organizations.length > 0 ? (
+            <Section title="Organizations">
+              <ul className="flex flex-wrap gap-2">
+                {results!.organizations.map((organization) => (
+                  <li key={organization.slug}>
+                    <Link
+                      href={`/exams?organization=${organization.slug}`}
+                      className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm hover:border-brand-300 hover:bg-brand-50"
+                    >
+                      {organization.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          ) : null}
+
+          {results!.subSubjects.length > 0 ? (
+            <Section title="Sub-subjects">
+              <ul className="flex flex-wrap gap-2">
+                {results!.subSubjects.map((subSubject) => (
+                  <li key={subSubject.slug}>
+                    <Link
+                      href={`/subjects/${subSubject.subjectSlug}`}
+                      className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm hover:border-brand-300 hover:bg-brand-50"
+                    >
+                      {subSubject.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          ) : null}
+
+          {results!.previousPapers.length > 0 ? (
+            <Section title="Previous papers">
+              <ul className="flex flex-wrap gap-2">
+                {results!.previousPapers.map((paper) => (
+                  <li key={paper.slug}>
+                    <Link
+                      href={`/previous-papers/${paper.slug}`}
+                      className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm hover:border-brand-300 hover:bg-brand-50"
+                    >
+                      {paper.title}
+                      <span className="text-[var(--text-muted)]"> · {paper.year}</span>
+                      {!paper.verified ? (
+                        <span className="text-[var(--text-muted)]"> (reconstructed)</span>
+                      ) : null}
                     </Link>
                   </li>
                 ))}

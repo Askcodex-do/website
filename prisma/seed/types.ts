@@ -25,4 +25,10 @@ export interface SeedQuestion {
   tags?: string[];
   staticOrder?: number;
   status?: "PUBLISHED" | "DRAFT" | "ARCHIVED";
+  /** Provenance; defaults to GENERATED unless a source is supplied. */
+  origin?:
+    | "OFFICIAL_PAPER"
+    | "VERIFIED_PRACTICE"
+    | "GENERATED"
+    | "IMPORTED";
 }

@@ -319,18 +319,29 @@ export async function getAdminQuestion(id: string) {
 }
 
 export async function listTaxonomyForAdmin() {
-  const [exams, subjects, topics, levels] = await Promise.all([
-    db.exam.findMany({
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      include: { configuration: true },
-    }),
-    db.subject.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
-    db.topic.findMany({
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      include: { subject: { select: { name: true } } },
-    }),
-    db.educationLevel.findMany({ orderBy: { rank: "asc" } }),
-  ]);
+  const [exams, subjects, topics, levels, categories, organizations, subSubjects, subtopics] =
+    await Promise.all([
+      db.exam.findMany({
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        include: { configuration: true },
+      }),
+      db.subject.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
+      db.topic.findMany({
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        include: { subject: { select: { name: true } } },
+      }),
+      db.educationLevel.findMany({ orderBy: { rank: "asc" } }),
+      db.category.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
+      db.organization.findMany({ orderBy: { name: "asc" } }),
+      db.subSubject.findMany({
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        include: { subject: { select: { name: true } } },
+      }),
+      db.subtopic.findMany({
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        include: { topic: { select: { name: true } } },
+      }),
+    ]);
 
   // One grouped query per relation keeps the taxonomy page O(1) queries.
   const [examCounts, subjectCounts] = await Promise.all([
@@ -353,6 +364,10 @@ export async function listTaxonomyForAdmin() {
     })),
     topics,
     levels,
+    categories,
+    organizations,
+    subSubjects,
+    subtopics,
   };
 }
 

@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getSiteIdentity } from "@/services/settings";
 import { MainNav, type NavLink } from "@/components/layout/main-nav";
 import { SearchBox } from "@/components/layout/search-box";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 import { isAdmin } from "@/lib/auth/permissions";
 
 const PRIMARY_LINKS: NavLink[] = [
@@ -12,6 +13,7 @@ const PRIMARY_LINKS: NavLink[] = [
   { href: "/topics", label: "Topics" },
   { href: "/mcqs", label: "MCQs" },
   { href: "/quiz", label: "Quiz" },
+  { href: "/previous-papers", label: "Previous Papers" },
   { href: "/search", label: "Search" },
 ];
 
@@ -55,13 +57,8 @@ export async function SiteHeader() {
                   Admin
                 </Link>
               ) : null}
-              <form action="/api/auth/logout" method="post">
-                <button
-                  type="submit"
-                  className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium hover:bg-[var(--surface-muted)]"
-                >
-                  Sign out
-                </button>
+              <form action="/api/auth/logout" method="post" className="contents">
+                <SignOutButton />
               </form>
             </>
           ) : (

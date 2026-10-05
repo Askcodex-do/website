@@ -15,7 +15,25 @@ export interface SearchResults {
     subjectSlug: string;
     subjectName: string;
   }>;
-  total: { questions: number; exams: number; subjects: number; topics: number };
+  categories: Array<{ slug: string; name: string; description: string | null }>;
+  organizations: Array<{ slug: string; name: string; description: string | null }>;
+  subSubjects: Array<{ slug: string; name: string; subjectSlug: string }>;
+  previousPapers: Array<{
+    slug: string;
+    title: string;
+    year: number;
+    verified: boolean;
+  }>;
+  total: {
+    questions: number;
+    exams: number;
+    subjects: number;
+    topics: number;
+    categories: number;
+    organizations: number;
+    subSubjects: number;
+    previousPapers: number;
+  };
 }
 
 /**
@@ -39,13 +57,36 @@ export async function search(
       exams: [],
       subjects: [],
       topics: [],
-      total: { questions: 0, exams: 0, subjects: 0, topics: 0 },
+      categories: [],
+      organizations: [],
+      subSubjects: [],
+      previousPapers: [],
+      total: {
+        questions: 0,
+        exams: 0,
+        subjects: 0,
+        topics: 0,
+        categories: 0,
+        organizations: 0,
+        subSubjects: 0,
+        previousPapers: 0,
+      },
     };
   }
 
   const insensitive = { contains: query, mode: "insensitive" as const };
 
-  const [questionRows, questionCount, exams, subjects, topics] = await Promise.all([
+  const [
+    questionRows,
+    questionCount,
+    exams,
+    subjects,
+    topics,
+    categories,
+    organizations,
+    subSubjects,
+    previousPapers,
+  ] = await Promise.all([
     db.question.findMany({
       where: {
         status: "PUBLISHED",
@@ -56,6 +97,7 @@ export async function search(
       include: {
         options: { orderBy: { sortOrder: "asc" } },
         subjects: { include: { subject: { select: { slug: true, name: true } } } },
+        subSubjects: { include: { subSubject: { select: { slug: true, name: true } } } },
         topics: { include: { topic: { select: { slug: true, name: true } } } },
         exams: { include: { exam: { select: { slug: true, name: true } } } },
       },
@@ -87,6 +129,39 @@ export async function search(
       take: 5,
       include: { subject: { select: { slug: true, name: true } } },
     }),
+    db.category.findMany({
+      where: {
+        isActive: true,
+        OR: [{ name: insensitive }, { description: insensitive }],
+      },
+      take: 5,
+      select: { slug: true, name: true, description: true },
+    }),
+    db.organization.findMany({
+      where: {
+        isActive: true,
+        OR: [{ name: insensitive }, { shortName: insensitive }],
+      },
+      take: 5,
+      select: { slug: true, name: true, description: true },
+    }),
+    db.subSubject.findMany({
+      where: {
+        isActive: true,
+        OR: [{ name: insensitive }, { description: insensitive }],
+      },
+      take: 5,
+      include: { subject: { select: { slug: true } } },
+    }),
+    db.previousPaper.findMany({
+      where: {
+        isPublished: true,
+        OR: [{ title: insensitive }, { paperName: insensitive }],
+      },
+      take: 5,
+      orderBy: { year: "desc" },
+      select: { slug: true, title: true, year: true, verified: true },
+    }),
   ]);
 
   return {
@@ -100,11 +175,23 @@ export async function search(
       subjectSlug: t.subject.slug,
       subjectName: t.subject.name,
     })),
+    categories,
+    organizations,
+    subSubjects: subSubjects.map((s) => ({
+      slug: s.slug,
+      name: s.name,
+      subjectSlug: s.subject.slug,
+    })),
+    previousPapers,
     total: {
       questions: questionCount,
       exams: exams.length,
       subjects: subjects.length,
       topics: topics.length,
+      categories: categories.length,
+      organizations: organizations.length,
+      subSubjects: subSubjects.length,
+      previousPapers: previousPapers.length,
     },
   };
 }

@@ -24,6 +24,7 @@ import {
 const QUESTION_INCLUDE = {
   options: { orderBy: { sortOrder: "asc" as const } },
   subjects: { include: { subject: { select: { slug: true, name: true } } } },
+  subSubjects: { include: { subSubject: { select: { slug: true, name: true } } } },
   topics: { include: { topic: { select: { slug: true, name: true } } } },
   exams: { include: { exam: { select: { slug: true, name: true } } } },
 } satisfies Prisma.QuestionInclude;
@@ -45,6 +46,8 @@ export function toPublicQuestion(question: QuestionWithRelations): PublicQuestio
     type: question.type,
     language: question.language,
     status: question.status,
+    verification: question.verification,
+    origin: question.origin,
     year: question.year,
     province: question.province,
     likeCount: question.likeCount,
@@ -58,6 +61,7 @@ export function toPublicQuestion(question: QuestionWithRelations): PublicQuestio
       text: o.text,
     })),
     subject: question.subjects[0]?.subject ?? null,
+    subSubject: question.subSubjects[0]?.subSubject ?? null,
     topic: question.topics[0]?.topic ?? null,
     exams: question.exams.map((e) => e.exam),
   };
@@ -97,8 +101,12 @@ export async function resolveExamConfig(
 
 export interface ResolvedTaxonomy {
   examId?: string;
+  categoryId?: string;
+  organizationId?: string;
   subjectId?: string;
+  subSubjectId?: string;
   topicId?: string;
+  subtopicId?: string;
   educationLevelId?: string;
   tagId?: string;
 }
@@ -106,10 +114,32 @@ export interface ResolvedTaxonomy {
 export async function resolveTaxonomyIds(
   filters: QuestionFilters,
 ): Promise<ResolvedTaxonomy> {
-  const [exam, subject, topic, educationLevel, tag] = await Promise.all([
+  const [
+    exam,
+    category,
+    organization,
+    subject,
+    subSubject,
+    topic,
+    subtopic,
+    educationLevel,
+    tag,
+  ] = await Promise.all([
     filters.exam
       ? db.exam.findFirst({
           where: { slug: filters.exam, isActive: true },
+          select: { id: true },
+        })
+      : null,
+    filters.category
+      ? db.category.findFirst({
+          where: { slug: filters.category, isActive: true },
+          select: { id: true },
+        })
+      : null,
+    filters.organization
+      ? db.organization.findFirst({
+          where: { slug: filters.organization, isActive: true },
           select: { id: true },
         })
       : null,
@@ -119,9 +149,21 @@ export async function resolveTaxonomyIds(
           select: { id: true },
         })
       : null,
+    filters.subSubject
+      ? db.subSubject.findFirst({
+          where: { slug: filters.subSubject, isActive: true },
+          select: { id: true },
+        })
+      : null,
     filters.topic
       ? db.topic.findFirst({
           where: { slug: filters.topic, isActive: true },
+          select: { id: true },
+        })
+      : null,
+    filters.subtopic
+      ? db.subtopic.findFirst({
+          where: { slug: filters.subtopic, isActive: true },
           select: { id: true },
         })
       : null,
@@ -138,8 +180,12 @@ export async function resolveTaxonomyIds(
 
   return {
     examId: exam?.id,
+    categoryId: category?.id,
+    organizationId: organization?.id,
     subjectId: subject?.id,
+    subSubjectId: subSubject?.id,
     topicId: topic?.id,
+    subtopicId: subtopic?.id,
     educationLevelId: educationLevel?.id,
     tagId: tag?.id,
   };
@@ -150,6 +196,7 @@ export async function resolveTaxonomyIds(
  * exam/education selection can never surface an unrelated question:
  *   - an exam narrows results to that exam's linked subjects (unless the caller
  *     explicitly requests a subject, which must itself belong to the exam);
+ *   - a category/organization narrows to questions linked to exams in it;
  *   - an education level narrows to questions tagged with that level.
  */
 export function buildQuestionWhere(
@@ -158,6 +205,7 @@ export function buildQuestionWhere(
   config: ResolvedExamConfig | null,
 ): Prisma.QuestionWhereInput {
   const where: Prisma.QuestionWhereInput = { status: "PUBLISHED" };
+  const and: Prisma.QuestionWhereInput[] = [];
 
   if (filters.difficulty) where.difficulty = filters.difficulty;
   if (filters.year) where.year = filters.year;
@@ -173,37 +221,56 @@ export function buildQuestionWhere(
     }
   }
 
+  // Category / organization scope (via the exams a question belongs to).
+  if (ids.categoryId) {
+    and.push({ exams: { some: { exam: { categoryId: ids.categoryId } } } });
+  }
+  if (ids.organizationId) {
+    and.push({
+      exams: { some: { exam: { organizationId: ids.organizationId } } },
+    });
+  }
+
   // Exam scoping: intersect the requested subject/topic with the exam blueprint.
   if (ids.examId) {
     if (ids.subjectId) {
       // A subject explicitly requested under an exam must be part of the exam.
       if (config && config.subjectIds.length > 0) {
-        where.AND = [
-          ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+        and.push(
           { subjects: { some: { subjectId: ids.subjectId } } },
           { subjects: { some: { subjectId: { in: config.subjectIds } } } },
-        ];
+        );
       } else {
-        where.subjects = { some: { subjectId: ids.subjectId } };
+        and.push({ subjects: { some: { subjectId: ids.subjectId } } });
       }
     } else if (config && config.subjectIds.length > 0) {
-      where.subjects = { some: { subjectId: { in: config.subjectIds } } };
+      and.push({ subjects: { some: { subjectId: { in: config.subjectIds } } } });
     } else {
-      where.exams = { some: { examId: ids.examId } };
+      and.push({ exams: { some: { examId: ids.examId } } });
     }
   } else if (ids.subjectId) {
-    where.subjects = { some: { subjectId: ids.subjectId } };
+    and.push({ subjects: { some: { subjectId: ids.subjectId } } });
   }
 
-  if (ids.topicId) where.topics = { some: { topicId: ids.topicId } };
-  if (ids.educationLevelId) {
-    where.educationLevels = { some: { educationLevelId: ids.educationLevelId } };
+  if (ids.subSubjectId) {
+    and.push({ subSubjects: { some: { subSubjectId: ids.subSubjectId } } });
   }
-  if (ids.tagId) where.tags = { some: { tagId: ids.tagId } };
+  if (ids.topicId) and.push({ topics: { some: { topicId: ids.topicId } } });
+  if (ids.subtopicId) {
+    and.push({ subtopics: { some: { subtopicId: ids.subtopicId } } });
+  }
+  if (ids.educationLevelId) {
+    and.push({
+      educationLevels: { some: { educationLevelId: ids.educationLevelId } },
+    });
+  }
+  if (ids.tagId) and.push({ tags: { some: { tagId: ids.tagId } } });
 
   if (filters.excludeIds && filters.excludeIds.length > 0) {
     where.id = { notIn: filters.excludeIds };
   }
+
+  if (and.length > 0) where.AND = and;
 
   return where;
 }
@@ -218,6 +285,30 @@ const STATIC_ORDER: Prisma.QuestionOrderByWithRelationInput[] = [
 export interface SelectOptions extends QuestionFilters {
   /** Called when an exam slug cannot be resolved. */
   onUnknownExam?: "ignore" | "empty";
+  /**
+   * Called when any other taxonomy slug (subject, topic, level, …) cannot be
+   * resolved. Defaults to "ignore" for backward compatibility; pass "empty" to
+   * fail closed so an unknown filter can never widen the result set.
+   */
+  onUnknownFilter?: "ignore" | "empty";
+}
+
+/** True when a filter was requested but did not resolve to a taxonomy row. */
+export function hasUnresolvedFilter(
+  filters: QuestionFilters,
+  ids: ResolvedTaxonomy,
+): boolean {
+  return (
+    (Boolean(filters.exam) && !ids.examId) ||
+    (Boolean(filters.category) && !ids.categoryId) ||
+    (Boolean(filters.organization) && !ids.organizationId) ||
+    (Boolean(filters.subject) && !ids.subjectId) ||
+    (Boolean(filters.subSubject) && !ids.subSubjectId) ||
+    (Boolean(filters.topic) && !ids.topicId) ||
+    (Boolean(filters.subtopic) && !ids.subtopicId) ||
+    (Boolean(filters.educationLevel) && !ids.educationLevelId) ||
+    (Boolean(filters.tag) && !ids.tagId)
+  );
 }
 
 /**
@@ -242,6 +333,16 @@ export async function getQuestions(
   }
 
   const ids = await resolveTaxonomyIds(options);
+  if (options.onUnknownFilter === "empty" && hasUnresolvedFilter(options, ids)) {
+    return {
+      questions: [],
+      total: 0,
+      mode: "RANDOM",
+      config,
+      appliedFilters: pickAppliedFilters(options),
+    };
+  }
+
   const where = buildQuestionWhere(options, ids, config);
 
   // Effective mode: explicit request wins, otherwise the exam's configuration,
@@ -331,8 +432,12 @@ export async function getStaticExamOrder(
 function pickAppliedFilters(filters: QuestionFilters) {
   return {
     exam: filters.exam,
+    category: filters.category,
+    organization: filters.organization,
     subject: filters.subject,
+    subSubject: filters.subSubject,
     topic: filters.topic,
+    subtopic: filters.subtopic,
     educationLevel: filters.educationLevel,
     difficulty: filters.difficulty,
     province: filters.province,

@@ -10,13 +10,152 @@ import type {
 
 /** Public, cached-friendly reads of the exam/subject/topic taxonomy. */
 
+export interface CategorySummary {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  examCount?: number;
+}
+
+export interface OrganizationSummary {
+  id: string;
+  slug: string;
+  name: string;
+  shortName: string | null;
+  website: string | null;
+  description: string | null;
+  examCount?: number;
+}
+
+export async function listCategories(): Promise<CategorySummary[]> {
+  const categories = await db.category.findMany({
+    where: { isActive: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    include: { _count: { select: { exams: true } } },
+  });
+  return categories.map((c) => ({
+    id: c.id,
+    slug: c.slug,
+    name: c.name,
+    description: c.description,
+    icon: c.icon,
+    examCount: c._count.exams,
+  }));
+}
+
+export async function getCategoryBySlug(
+  slug: string,
+): Promise<CategorySummary | null> {
+  const category = await db.category.findFirst({
+    where: { slug, isActive: true },
+    include: { _count: { select: { exams: true } } },
+  });
+  if (!category) return null;
+  return {
+    id: category.id,
+    slug: category.slug,
+    name: category.name,
+    description: category.description,
+    icon: category.icon,
+    examCount: category._count.exams,
+  };
+}
+
+export async function listOrganizations(): Promise<OrganizationSummary[]> {
+  const orgs = await db.organization.findMany({
+    where: { isActive: true },
+    orderBy: { name: "asc" },
+    include: { _count: { select: { exams: true } } },
+  });
+  return orgs.map((o) => ({
+    id: o.id,
+    slug: o.slug,
+    name: o.name,
+    shortName: o.shortName,
+    website: o.website,
+    description: o.description,
+    examCount: o._count.exams,
+  }));
+}
+
+export async function getOrganizationBySlug(
+  slug: string,
+): Promise<OrganizationSummary | null> {
+  const org = await db.organization.findFirst({
+    where: { slug, isActive: true },
+    include: { _count: { select: { exams: true } } },
+  });
+  if (!org) return null;
+  return {
+    id: org.id,
+    slug: org.slug,
+    name: org.name,
+    shortName: org.shortName,
+    website: org.website,
+    description: org.description,
+    examCount: org._count.exams,
+  };
+}
+
+/** Sub-subjects belonging to a subject. */
+export async function listSubSubjects(subjectSlug?: string) {
+  const rows = await db.subSubject.findMany({
+    where: {
+      isActive: true,
+      ...(subjectSlug ? { subject: { slug: subjectSlug, isActive: true } } : {}),
+    },
+    orderBy: [{ subjectId: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
+    include: {
+      subject: { select: { slug: true, name: true } },
+      _count: { select: { topics: true } },
+    },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    slug: r.slug,
+    name: r.name,
+    description: r.description,
+    subject: r.subject,
+    topicCount: r._count.topics,
+  }));
+}
+
+/** Subtopics belonging to a topic. */
+export async function listSubtopics(topicSlug?: string) {
+  const rows = await db.subtopic.findMany({
+    where: {
+      isActive: true,
+      ...(topicSlug ? { topic: { slug: topicSlug, isActive: true } } : {}),
+    },
+    orderBy: [{ topicId: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
+    include: { topic: { select: { slug: true, name: true } } },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    slug: r.slug,
+    name: r.name,
+    description: r.description,
+    topic: r.topic,
+  }));
+}
+
 export async function listExams(options?: {
   featuredOnly?: boolean;
+  categorySlug?: string;
+  organizationSlug?: string;
 }): Promise<ExamSummary[]> {
   const exams = await db.exam.findMany({
     where: {
       isActive: true,
       ...(options?.featuredOnly ? { isFeatured: true } : {}),
+      ...(options?.categorySlug
+        ? { category: { slug: options.categorySlug, isActive: true } }
+        : {}),
+      ...(options?.organizationSlug
+        ? { organization: { slug: options.organizationSlug, isActive: true } }
+        : {}),
     },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     include: { configuration: true },

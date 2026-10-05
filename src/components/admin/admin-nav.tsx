@@ -7,8 +7,12 @@ import { classNames } from "@/lib/class-names";
 const LINKS = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/questions", label: "Questions" },
+  { href: "/admin/verification", label: "Verification" },
+  { href: "/admin/duplicates", label: "Duplicates" },
   { href: "/admin/import", label: "Bulk import" },
   { href: "/admin/taxonomy", label: "Taxonomy" },
+  { href: "/admin/papers", label: "Previous papers" },
+  { href: "/admin/prep-pages", label: "Preparation" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/reports", label: "Reports" },
   { href: "/admin/messages", label: "Messages" },

@@ -89,6 +89,8 @@ describe("structured data", () => {
       type: "SINGLE_CHOICE",
       language: "ENGLISH",
       status: "PUBLISHED",
+      verification: "UNVERIFIED",
+      origin: "GENERATED",
       year: null,
       province: null,
       likeCount: 0,
@@ -101,6 +103,7 @@ describe("structured data", () => {
         { id: "b", label: "B", text: "A doing word" },
       ],
       subject: { slug: "english", name: "English" },
+      subSubject: { slug: "english-grammar", name: "Grammar" },
       topic: { slug: "parts-of-speech", name: "Parts of Speech" },
       exams: [{ slug: "css", name: "CSS" }],
     };

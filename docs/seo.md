@@ -23,9 +23,11 @@ pages) builds metadata through `src/lib/seo/metadata.ts`:
 ```
 /exams/pst
 /exams/css
+/exams/pst/preparation/syllabus
 /subjects/english
 /topics/tenses
 /mcqs/english/what-is-a-noun
+/previous-papers/css-2024
 ```
 
 Filtered listing permutations (for example `/mcqs?subject=...`) are blocked in

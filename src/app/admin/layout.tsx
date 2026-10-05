@@ -4,6 +4,7 @@ import { buildMetadata } from "@/lib/seo/metadata";
 import { requireAdmin } from "@/lib/admin-guard";
 import { PageShell } from "@/components/layout/container";
 import { AdminNav } from "@/components/admin/admin-nav";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 
 export const dynamic = "force-dynamic";
 
@@ -26,14 +27,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             {user.name ?? user.email} · {user.role.name}
           </p>
         </div>
-        <form action="/api/auth/logout" method="post">
-          <button
-            type="submit"
-            className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-muted)]"
-          >
-            Sign out
-          </button>
-        </form>
+        <SignOutButton label="Sign out" />
       </div>
 
       <div className="lg:grid lg:grid-cols-[220px_1fr] lg:gap-8">

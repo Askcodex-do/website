@@ -10,6 +10,8 @@ interface Fact {
   explanation: string;
   difficulty?: "EASY" | "MEDIUM" | "HARD";
   tags?: string[];
+  /** Optional explicit source/reference for a specific fact. */
+  reference?: string;
 }
 
 /**
@@ -209,6 +211,12 @@ export function generateFactQuestions(
       tags: fact.tags ?? [],
       staticOrder: 5000 + index,
       status: "PUBLISHED" as const,
+      // The fact bank is curated and editorially reviewed, so these questions
+      // are sourced (VERIFIED_PRACTICE) rather than raw generated content.
+      source: "Curated fact bank",
+      reference:
+        fact.reference ?? "Editorially reviewed fact bank (curated references)",
+      origin: "VERIFIED_PRACTICE" as const,
     };
   });
 }

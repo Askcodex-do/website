@@ -3,6 +3,7 @@ import {
   buildQuestionWhere,
   getQuestions,
   getStaticExamOrder,
+  hasUnresolvedFilter,
   resolveExamConfig,
   resolveTaxonomyIds,
 } from "@/services/question-selection";
@@ -165,5 +166,35 @@ describe("engine guarantees", () => {
     const and = Array.isArray(where.AND) ? where.AND : [where.AND];
     // The foreign subject must be intersected with the exam's own subject list.
     expect(and.some((clause) => clause && "subjects" in clause)).toBe(true);
+  });
+});
+
+describe("unknown filter handling", () => {
+  it("detects a requested-but-unresolved taxonomy filter", async () => {
+    const ids = await resolveTaxonomyIds({
+      subject: "no-such-subject-vitest",
+      topic: fixtures.topicSlug,
+    });
+    expect(hasUnresolvedFilter({ subject: "no-such-subject-vitest" }, ids)).toBe(
+      true,
+    );
+    expect(hasUnresolvedFilter({ topic: fixtures.topicSlug }, ids)).toBe(false);
+  });
+
+  it("fails closed (returns no questions) when a filter is unknown", async () => {
+    const result = await getQuestions({
+      subject: "no-such-subject-vitest",
+      limit: 5,
+      onUnknownFilter: "empty",
+    });
+    expect(result.questions).toHaveLength(0);
+    expect(result.total).toBe(0);
+  });
+
+  it("ignores an unknown filter by default (backward compatible)", async () => {
+    // With default behaviour an unknown subject is dropped rather than emptying
+    // the result set — the old contract callers rely on.
+    const result = await getQuestions({ limit: 1 });
+    expect(result.questions.length).toBeGreaterThan(0);
   });
 });

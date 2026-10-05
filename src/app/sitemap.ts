@@ -12,12 +12,15 @@ export const revalidate = 3600;
  * grows into the hundreds of thousands.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [questions, exams, subjects, topics] = await Promise.all([
-    db.question.count({ where: { status: "PUBLISHED" } }),
-    db.exam.count({ where: { isActive: true } }),
-    db.subject.count(),
-    db.topic.count(),
-  ]);
+  const [questions, exams, subjects, topics, prepPages, previousPapers] =
+    await Promise.all([
+      db.question.count({ where: { status: "PUBLISHED" } }),
+      db.exam.count({ where: { isActive: true } }),
+      db.subject.count(),
+      db.topic.count(),
+      db.prepPage.count({ where: { isPublished: true } }),
+      db.previousPaper.count({ where: { isPublished: true } }),
+    ]);
 
   const chunkSize = 20000;
   const questionChunks = Math.max(1, Math.ceil(questions / chunkSize));
@@ -59,6 +62,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 0.7,
     },
+    {
+      url: `${siteUrl}/previous-papers`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
   ];
 
   // Child sitemaps are only advertised when there is content to list, keeping
@@ -66,6 +75,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (exams > 0) entries.push(childSitemap("exams"));
   if (subjects > 0) entries.push(childSitemap("subjects"));
   if (topics > 0) entries.push(childSitemap("topics"));
+  if (prepPages > 0) entries.push(childSitemap("prep-pages"));
+  if (previousPapers > 0) entries.push(childSitemap("previous-papers"));
   for (let i = 0; i < questionChunks; i++) {
     entries.push(childSitemap(`questions-${i}`));
   }

@@ -62,9 +62,12 @@ model User {
   quizAttempts        QuizAttempt[]
   bookmarks           Bookmark[]
   likes               Like[]
-  reports             Report[]         @relation("ReportAuthor")
-  resolvedReports     Report[]         @relation("ReportResolver")
-  createdQuestions    Question[]       @relation("QuestionAuthor")
+  reports             Report[]                 @relation("ReportAuthor")
+  resolvedReports     Report[]                 @relation("ReportResolver")
+  createdQuestions    Question[]               @relation("QuestionAuthor")
+  verifiedQuestions   Question[]               @relation("QuestionVerifier")
+  reviewedQuestions   QuestionReview[]         @relation("QuestionReviewer")
+  generatedPapers     GeneratedPaper[]         @relation("PaperAuthor")
   auditLogs           AuditLog[]
 
   @@index([roleId])
@@ -72,16 +75,16 @@ model User {
 }
 
 model Session {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   // Only a hash of the session token is stored, never the raw token.
-  tokenHash String   @unique
+  tokenHash String    @unique
   userAgent String?
   ipHash    String?
   expiresAt DateTime
   revokedAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
   @@index([expiresAt])
@@ -128,6 +131,45 @@ enum ExamMode {
   RANDOM // shuffled selection from the matching pool
 }
 
+/// Top level of the exam hierarchy: Category → Exam → Subject → Sub-subject →
+/// Topic → Subtopic → MCQs. Categories (e.g. "Teaching Tests", "Medical Entry
+/// Tests", "Banking") are data, so new groupings need no code change.
+model Category {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String?
+  icon        String?
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  exams Exam[]
+
+  @@index([isActive, sortOrder])
+}
+
+/// Conducting body / authority: NTS, FPSC, PPSC, HEC, MDCAT, etc. Exams point
+/// at the organization that runs them so listings can be grouped by authority.
+model Organization {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  shortName   String?
+  website     String?
+  description String?
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  exams Exam[]
+
+  @@index([isActive])
+}
+
 model Exam {
   id          String   @id @default(cuid())
   slug        String   @unique
@@ -142,6 +184,20 @@ model Exam {
   sortOrder   Int      @default(0)
   icon        String?
 
+  // Hierarchy + authority metadata (all optional so existing rows still work).
+  categoryId     String?
+  category       Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  // Structured exam metadata for the preparation pages.
+  eligibility String?
+  testPattern String?
+  syllabus    String?
+  duration    String?
+  totalMarks  String?
+  website     String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -150,9 +206,14 @@ model Exam {
   educationLevels ExamEducationLevel[]
   subjects        ExamSubject[]
   quizAttempts    QuizAttempt[]
+  previousPapers  PreviousPaper[]
+  prepPages       PrepPage[]
+  generatedPapers GeneratedPaper[]
 
   @@index([isActive, sortOrder])
   @@index([type])
+  @@index([categoryId])
+  @@index([organizationId])
 }
 
 model ExamConfiguration {
@@ -161,20 +222,20 @@ model ExamConfiguration {
   exam   Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
 
   // Display / selection behaviour — drives the Question Selection Engine.
-  mode                 ExamMode @default(RANDOM)
-  defaultQuestionCount Int      @default(20)
-  timeLimitMinutes     Int      @default(30)
-  negativeMarking      Boolean  @default(false)
+  mode                   ExamMode @default(RANDOM)
+  defaultQuestionCount   Int      @default(20)
+  timeLimitMinutes       Int      @default(30)
+  negativeMarking        Boolean  @default(false)
   // Marks deducted per wrong answer (e.g. 0.25).
-  negativeMarkFactor   Float    @default(0)
-  marksPerQuestion     Float    @default(1)
-  passingPercentage    Int      @default(50)
+  negativeMarkFactor     Float    @default(0)
+  marksPerQuestion       Float    @default(1)
+  passingPercentage      Int      @default(50)
   // Optional per-difficulty weights, e.g. {"EASY":0.3,"MEDIUM":0.5,"HARD":0.2}
   difficultyDistribution Json?
   // Seed used to keep STATIC ordering stable across requests.
-  staticOrderSeed      String?
+  staticOrderSeed        String?
   // Free-form rule overrides for future-proofing (no code change required).
-  rules                Json?
+  rules                  Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -209,31 +270,81 @@ model Subject {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  topics       Topic[]
-  questions    QuestionSubject[]
-  exams        ExamSubject[]
-  quizAttempts QuizAttempt[]
+  subSubjects    SubSubject[]
+  topics         Topic[]
+  questions      QuestionSubject[]
+  exams          ExamSubject[]
+  quizAttempts   QuizAttempt[]
+  previousPapers PreviousPaper[]
+  generatedPapers GeneratedPaper[]
 
   @@index([isActive, sortOrder])
 }
 
-model Topic {
+/// Subject → Sub-subject (e.g. Mathematics → Algebra). Optional layer so the
+/// hierarchy can go as deep as a syllabus needs without new tables.
+model SubSubject {
   id          String  @id @default(cuid())
   slug        String  @unique
   name        String
+  description String?
   subjectId   String
   subject     Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  description String?
   isActive    Boolean @default(true)
   sortOrder   Int     @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  topics       Topic[]
+  questions    QuestionSubSubject[]
+  quizAttempts QuizAttempt[]
+
+  @@index([subjectId, isActive])
+}
+
+model Topic {
+  id           String      @id @default(cuid())
+  slug         String      @unique
+  name         String
+  subjectId    String
+  subject      Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  // Optional sub-subject parent; null keeps the flat subject → topic behaviour.
+  subSubjectId String?
+  subSubject   SubSubject? @relation(fields: [subSubjectId], references: [id], onDelete: SetNull)
+  description  String?
+  isActive     Boolean     @default(true)
+  sortOrder    Int         @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subtopics    Subtopic[]
   questions    QuestionTopic[]
   quizAttempts QuizAttempt[]
 
   @@index([subjectId, isActive])
+  @@index([subSubjectId, isActive])
+}
+
+/// Topic → Subtopic (e.g. Tenses → Present Perfect). The finest taxonomy grain.
+model Subtopic {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String?
+  topicId     String
+  topic       Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  questions    QuestionSubtopic[]
+  quizAttempts QuizAttempt[]
+
+  @@index([topicId, isActive])
 }
 
 // Exam <-> taxonomy links. These are what make "select PST -> resolve subjects"
@@ -252,9 +363,9 @@ model ExamSubject {
   examId    String
   subjectId String
   // Optional weighting so exam blueprints can bias question counts per subject.
-  weight  Int     @default(1)
-  exam    Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
-  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  weight    Int     @default(1)
+  exam      Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
   @@id([examId, subjectId])
   @@index([subjectId])
@@ -274,6 +385,25 @@ enum QuestionStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
+}
+
+/// Verification workflow. Generated practice content starts UNVERIFIED and must
+/// be reviewed before it can be presented as verified.
+enum VerificationStatus {
+  UNVERIFIED // generated/imported, not yet reviewed
+  PENDING_REVIEW // queued for a reviewer
+  VERIFIED // reviewed and approved against a source or the review process
+  REJECTED // reviewed and found unacceptable
+  FLAGGED // reported or auto-flagged, needs a second look
+}
+
+/// Provenance. This is what lets the UI clearly distinguish authentic previous
+/// papers from generated practice material.
+enum ContentOrigin {
+  OFFICIAL_PAPER // a real, sourced past paper
+  VERIFIED_PRACTICE // hand-authored or reviewed practice question
+  GENERATED // auto-generated practice question
+  IMPORTED // bulk-imported
 }
 
 enum QuestionType {
@@ -302,6 +432,14 @@ model Question {
   status     QuestionStatus   @default(DRAFT)
   type       QuestionType     @default(SINGLE_CHOICE)
   language   QuestionLanguage @default(ENGLISH)
+
+  // Verification workflow + provenance (see enums above).
+  verification VerificationStatus @default(UNVERIFIED)
+  origin       ContentOrigin      @default(GENERATED)
+  verifiedById String?
+  verifiedBy   User?              @relation("QuestionVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  verifiedAt   DateTime?
+  reviewNote   String?
 
   // Optional exam-paper provenance.
   year     Int?
@@ -334,18 +472,25 @@ model Question {
   topics          QuestionTopic[]
   educationLevels QuestionEducationLevel[]
   tags            QuestionTag[]
+  subSubjects     QuestionSubSubject[]
+  subtopics       QuestionSubtopic[]
 
-  attemptQuestions QuizAttemptQuestion[]
-  userAnswers      UserAnswer[]
-  bookmarks        Bookmark[]
-  likes            Like[]
-  reports          Report[]
+  attemptQuestions    QuizAttemptQuestion[]
+  userAnswers         UserAnswer[]
+  bookmarks           Bookmark[]
+  likes               Like[]
+  reports             Report[]
+  paperQuestions      PreviousPaperQuestion[]
+  generatedPaperItems GeneratedPaperQuestion[]
+  reviews             QuestionReview[]
 
   // Composite indexes covering the Question Selection Engine's filter matrix.
   @@index([status, difficulty])
   @@index([status, staticOrder])
   @@index([status, year])
   @@index([status, province])
+  @@index([status, verification])
+  @@index([origin])
   @@index([createdAt])
 }
 
@@ -358,7 +503,7 @@ model QuestionOption {
   isCorrect  Boolean  @default(false)
   sortOrder  Int      @default(0)
 
-  selectedInAnswers         UserAnswer[]
+  selectedInAnswers          UserAnswer[]
   selectedInAttemptQuestions QuizAttemptQuestion[]
 
   @@unique([questionId, label])
@@ -424,6 +569,166 @@ model QuestionTag {
   @@index([tagId])
 }
 
+model QuestionSubSubject {
+  questionId   String
+  subSubjectId String
+  question     Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  subSubject   SubSubject @relation(fields: [subSubjectId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, subSubjectId])
+  @@index([subSubjectId])
+}
+
+model QuestionSubtopic {
+  questionId String
+  subtopicId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  subtopic   Subtopic @relation(fields: [subtopicId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, subtopicId])
+  @@index([subtopicId])
+}
+
+// ---------------------------------------------------------------------------
+// Previous papers & generated (guess/mock) papers
+// ---------------------------------------------------------------------------
+
+/// A real, sourced past paper. `verified` distinguishes authentic papers from
+/// nothing — generated practice lives in GeneratedPaper, never here.
+model PreviousPaper {
+  id        String  @id @default(cuid())
+  slug      String  @unique
+  title     String
+  year      Int
+  // Human name of the paper/test, e.g. "PPSC Lecturer English Paper".
+  paperName String?
+  // Free-text session/shift, e.g. "Morning", "Paper I".
+  session   String?
+  source    String?
+  reference String?
+  // A past paper is only marked verified once a reliable source is attached.
+  verified  Boolean @default(false)
+
+  examId    String?
+  exam      Exam?    @relation(fields: [examId], references: [id], onDelete: SetNull)
+  subjectId String?
+  subject   Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  isPublished Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  questions PreviousPaperQuestion[]
+
+  @@index([examId, year])
+  @@index([subjectId])
+  @@index([isPublished, verified])
+}
+
+model PreviousPaperQuestion {
+  paperId    String
+  questionId String
+  paper      PreviousPaper @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  question   Question      @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  orderIndex Int           @default(0)
+
+  @@id([paperId, questionId])
+  @@index([questionId])
+}
+
+/// A generated practice / mock / guess paper. Always labelled as practice in the
+/// UI — never presented as an official paper.
+model GeneratedPaper {
+  id    String    @id @default(cuid())
+  slug  String    @unique
+  title String
+  kind  PaperKind @default(MOCK)
+
+  examId           String?
+  exam             Exam?        @relation(fields: [examId], references: [id], onDelete: SetNull)
+  subjectId        String?
+  subject          Subject?     @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  topicId          String?
+  difficulty       Difficulty?
+  questionCount    Int
+  timeLimitMinutes Int?
+  // The exact filters used, so the paper can be regenerated/explained.
+  filters          Json?
+
+  createdById String?
+  createdBy   User?   @relation("PaperAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  questions GeneratedPaperQuestion[]
+
+  @@index([examId])
+  @@index([kind])
+}
+
+enum PaperKind {
+  MOCK // full-length exam-pattern mock
+  SUBJECT // subject-wise
+  TOPIC // topic-wise
+  DIFFICULTY // difficulty-based
+  GUESS // expected-question practice set
+  RANDOM // free random practice
+}
+
+model GeneratedPaperQuestion {
+  paperId    String
+  questionId String
+  paper      GeneratedPaper @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  question   Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  orderIndex Int            @default(0)
+
+  @@id([paperId, questionId])
+  @@index([questionId])
+}
+
+// ---------------------------------------------------------------------------
+// Static preparation / content pages (reusable templates, not one-off pages)
+// ---------------------------------------------------------------------------
+
+enum PrepPageType {
+  OVERVIEW
+  ELIGIBILITY
+  SYLLABUS
+  PATTERN
+  SUBJECTS
+  TOPICS
+  STRATEGY
+  NOTES
+  FAQ
+  PREPARATION // recommended preparation sequence
+}
+
+/// Reusable content blocks rendered by a small set of templates keyed on `type`.
+/// Adding an exam's preparation pages is data entry, never a new component.
+model PrepPage {
+  id   String @id @default(cuid())
+  slug String @unique
+
+  examId String?
+  exam   Exam?   @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  type        PrepPageType @default(OVERVIEW)
+  title       String
+  summary     String?
+  // Ordered content sections. Each item: { heading, body, bullets?: string[] }.
+  sections    Json?
+  faqs        Json?
+  sortOrder   Int          @default(0)
+  isPublished Boolean      @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([examId, type])
+  @@index([isPublished])
+}
+
 // ---------------------------------------------------------------------------
 // Quiz engine
 // ---------------------------------------------------------------------------
@@ -438,8 +743,8 @@ model QuizAttempt {
   id String @id @default(cuid())
 
   // Authenticated owner (null for guest attempts).
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   // Guests are tracked by an opaque, server-issued session id (stored locally).
   guestSessionId String?
 
@@ -450,6 +755,10 @@ model QuizAttempt {
   subject          Subject?        @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   topicId          String?
   topic            Topic?          @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  subSubjectId     String?
+  subSubject       SubSubject?     @relation(fields: [subSubjectId], references: [id], onDelete: SetNull)
+  subtopicId       String?
+  subtopic         Subtopic?       @relation(fields: [subtopicId], references: [id], onDelete: SetNull)
   educationLevelId String?
   educationLevel   EducationLevel? @relation(fields: [educationLevelId], references: [id], onDelete: SetNull)
 
@@ -457,9 +766,9 @@ model QuizAttempt {
   difficulty         Difficulty?
   requestedCount     Int
   timeLimitSeconds   Int?
-  negativeMarking    Boolean @default(false)
-  negativeMarkFactor Float   @default(0)
-  marksPerQuestion   Float   @default(1)
+  negativeMarking    Boolean     @default(false)
+  negativeMarkFactor Float       @default(0)
+  marksPerQuestion   Float       @default(1)
   filters            Json?
 
   status           AttemptStatus @default(IN_PROGRESS)
@@ -488,6 +797,24 @@ model QuizAttempt {
   @@index([examId])
 }
 
+/// Append-only trail of a question's verification decisions, so an audit of the
+/// review workflow exists independently of the question's current state.
+model QuestionReview {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  reviewerId String?
+  reviewer   User?    @relation("QuestionReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  fromStatus VerificationStatus?
+  toStatus   VerificationStatus
+  note       String?
+  createdAt  DateTime            @default(now())
+
+  @@index([questionId, createdAt])
+  @@index([reviewerId])
+}
+
 // The frozen question set for an attempt, with presentation order.
 model QuizAttemptQuestion {
   id         String      @id @default(cuid())
@@ -498,7 +825,7 @@ model QuizAttemptQuestion {
   orderIndex Int
 
   // Snapshot of option order shown to the user (option ids).
-  optionOrder String[] @default([])
+  optionOrder      String[]        @default([])
   // Snapshot of the correct option id, so grading never trusts the client.
   correctOptionId  String?
   selectedOptionId String?
@@ -626,20 +953,20 @@ model ContactMessage {
 // Per-entity SEO overrides. When absent, metadata is derived automatically
 // from the entity's own content.
 model SeoMetadata {
-  id            String   @id @default(cuid())
-  entityType    String // "exam" | "subject" | "topic" | "question" | "page"
-  entityId      String
-  title         String?
-  description   String?
-  canonicalUrl  String?
-  keywords      String[]
-  ogTitle       String?
-  ogDescription String?
-  ogImage       String?
-  noindex       Boolean  @default(false)
+  id             String   @id @default(cuid())
+  entityType     String // "exam" | "subject" | "topic" | "question" | "page"
+  entityId       String
+  title          String?
+  description    String?
+  canonicalUrl   String?
+  keywords       String[]
+  ogTitle        String?
+  ogDescription  String?
+  ogImage        String?
+  noindex        Boolean  @default(false)
   structuredData Json?
-  updatedAt     DateTime @updatedAt
-  createdAt     DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
 
   @@unique([entityType, entityId])
   @@index([entityType])

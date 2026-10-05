@@ -126,6 +126,16 @@ body {
   text-decoration: underline;
 }
 
+/* Shared form control styling for admin forms. */
+.input {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background-color: var(--surface);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
 /* Respect users who prefer reduced motion. */
 @media (prefers-reduced-motion: reduce) {
   html {

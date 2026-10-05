@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { unstable_rethrow } from "next/navigation";
 import { ZodError, type ZodSchema } from "zod";
 
 /** Shared helpers for JSON API routes: consistent envelopes and validation. */
@@ -66,6 +67,10 @@ export function routeHandler(
     try {
       return await handler(request, context);
     } catch (error) {
+      // Next control-flow errors (redirect(), notFound()) must propagate, not be
+      // swallowed into a 500. Without this, a redirect from a route handler is
+      // converted into an error response and the navigation silently fails.
+      unstable_rethrow(error);
       if (error instanceof ApiError) {
         return jsonError(error.message, error.status, error.extra);
       }
