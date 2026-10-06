@@ -10,12 +10,32 @@ import { PAKISTAN_EXAMS } from "../taxonomy-pakistan";
 
 /** subject slug → every exam slug whose blueprint includes that subject. */
 export function buildExamSubjectMap(): Record<string, string[]> {
+  // Priority: featured exams, then subject-practice / language / general exams,
+  // then the rest. The seed caps exam links per question (MAX_EXAMS_PER_QUESTION)
+  // to keep the join table scalable; without this ordering the cap would drop
+  // the very practice exams users start from (a popular subject can appear in
+  // 100+ exam blueprints).
+  const bySlug = new Map(PAKISTAN_EXAMS.map((e) => [e.slug, e]));
+  const priority = (slug: string): number => {
+    const exam = bySlug.get(slug);
+    if (!exam) return 3;
+    if (exam.isFeatured) return 0;
+    if (exam.category === "general-practice" || exam.category === "language-tests") return 1;
+    if (slug.endsWith("-practice")) return 1;
+    return 2;
+  };
+
   const map: Record<string, string[]> = {};
   for (const subject of SUBJECTS) map[subject.slug] = [];
   for (const exam of PAKISTAN_EXAMS) {
     for (const subject of exam.subjects) {
       if (map[subject]) map[subject].push(exam.slug);
     }
+  }
+  for (const subject of Object.keys(map)) {
+    map[subject] = [...map[subject]].sort(
+      (a, b) => priority(a) - priority(b) || a.localeCompare(b),
+    );
   }
   return map;
 }

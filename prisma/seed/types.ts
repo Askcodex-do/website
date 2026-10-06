@@ -4,6 +4,7 @@
  */
 
 export type SeedDifficulty = "EASY" | "MEDIUM" | "HARD";
+export type SeedLanguage = "ENGLISH" | "URDU" | "SINDHI";
 
 export interface SeedQuestion {
   /** Unique, human-readable slug used in the public URL. */
@@ -31,4 +32,6 @@ export interface SeedQuestion {
     | "VERIFIED_PRACTICE"
     | "GENERATED"
     | "IMPORTED";
+  /** Content language; defaults to ENGLISH. */
+  language?: SeedLanguage;
 }
