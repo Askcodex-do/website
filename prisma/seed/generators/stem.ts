@@ -71,6 +71,21 @@ const COMPUTER_FACTS: Fact[] = [
   { q: "What does USB stand for?", a: "Universal Serial Bus", d: ["Universal System Bus", "Uniform Serial Bus", "United Serial Bus"], e: "USB = Universal Serial Bus." },
 ];
 
+const DATA_STRUCTURES_FACTS: Fact[] = [
+  { q: "A stack follows which order?", a: "LIFO", d: ["FIFO", "Random", "Priority"], e: "A stack is Last-In-First-Out." },
+  { q: "A queue follows which order?", a: "FIFO", d: ["LIFO", "Random", "Priority"], e: "A queue is First-In-First-Out." },
+  { q: "Which data structure uses a key-value mapping?", a: "Hash table", d: ["Stack", "Queue", "Linked list"], e: "A hash table maps keys to values." },
+  { q: "A binary tree node has at most how many children?", a: "2", d: ["1", "3", "4"], e: "A binary tree node has at most two children." },
+  { q: "In a binary search tree, the left subtree holds values that are:", a: "Smaller than the node", d: ["Larger than the node", "Equal to the node", "Unrelated"], e: "Left subtree values are smaller." },
+  { q: "Which structure grows by linking nodes with pointers?", a: "Linked list", d: ["Array", "Stack", "Queue"], e: "A linked list links nodes with pointers." },
+  { q: "What is the average time to search a balanced binary search tree?", a: "O(log n)", d: ["O(n)", "O(1)", "O(n log n)"], e: "A balanced BST searches in O(log n)." },
+  { q: "Which traversal visits root, then left, then right?", a: "Pre-order", d: ["In-order", "Post-order", "Level-order"], e: "Pre-order visits root first." },
+  { q: "Which traversal visits left, then root, then right?", a: "In-order", d: ["Pre-order", "Post-order", "Level-order"], e: "In-order visits left, root, right." },
+  { q: "A graph with no cycles is called a:", a: "Tree", d: ["Cycle graph", "Complete graph", "Multigraph"], e: "A connected acyclic graph is a tree." },
+  { q: "What is the worst-case time to search an unsorted array?", a: "O(n)", d: ["O(log n)", "O(1)", "O(n log n)"], e: "An unsorted array needs a linear scan." },
+  { q: "Which technique solves a problem by breaking it into overlapping subproblems?", a: "Dynamic programming", d: ["Greedy", "Backtracking", "Recursion only"], e: "Dynamic programming caches subproblem results." },
+];
+
 export function generateStemV1(): SeedQuestion[] {
   const { rand } = makeRandom("stem-v1");
   const out: SeedQuestion[] = [];
@@ -216,7 +231,7 @@ export function generateStemV1(): SeedQuestion[] {
     }),
   );
   out.push(...bankToQuestions(COMPUTER_FACTS, { subject: "computer", topic: "computer-fundamentals", prefix: "s1-comp", tags: ["computer"] }));
-  out.push(...bankToQuestions(COMPUTER_FACTS, { subject: "computer-science", topic: "data-structures", prefix: "s1-cs", tags: ["computer-science"] }));
+  out.push(...bankToQuestions(DATA_STRUCTURES_FACTS, { subject: "computer-science", topic: "data-structures", prefix: "s1-cs", tags: ["computer-science"] }));
 
   return out;
 }

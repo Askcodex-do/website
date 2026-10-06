@@ -28,13 +28,13 @@ export type { GeneratorContext } from "./core";
 export { generateFactQuestions, generateEnglishQuestions, generateMathQuestions };
 
 /**
- * Distribution policy. Every subject is populated and no single subject may
- * dominate the bank: subjects above the cap are trimmed (spread evenly across
- * their topics so no topic is emptied), while the floor documents the minimum a
- * subject should carry. Both are environment-tunable so the bank can be scaled
- * without code changes.
+ * Optional per-subject cap. Unset by default so the full generated bank ships
+ * (the parametric generators are the source of scale). Set `SEED_SUBJECT_CAP` to
+ * trim any subject that would otherwise dominate — useful when seeding a small
+ * environment. When a subject is trimmed the cut is spread evenly across its
+ * topics so no topic is emptied.
  */
-const SUBJECT_CAP = Math.max(100, Number(process.env.SEED_SUBJECT_CAP ?? 5000));
+const SUBJECT_CAP = Number(process.env.SEED_SUBJECT_CAP ?? 0);
 
 /**
  * Tag the content language of a question. Rather than assume from the subject
@@ -87,8 +87,10 @@ function capSubject(questions: SeedQuestion[], cap: number): SeedQuestion[] {
   return picked.slice(0, cap);
 }
 
-/** Apply the distribution cap per subject. */
+/** Apply the optional per-subject cap. */
 function applyDistribution(questions: SeedQuestion[]): SeedQuestion[] {
+  if (!(SUBJECT_CAP > 0)) return questions;
+
   const bySubject = new Map<string, SeedQuestion[]>();
   for (const q of questions) {
     const list = bySubject.get(q.subject) ?? [];
@@ -97,7 +99,9 @@ function applyDistribution(questions: SeedQuestion[]): SeedQuestion[] {
   }
 
   const out: SeedQuestion[] = [];
-  for (const list of bySubject.values()) out.push(...capSubject(list, SUBJECT_CAP));
+  for (const list of bySubject.values()) {
+    for (const q of capSubject(list, SUBJECT_CAP)) out.push(q);
+  }
   return out;
 }
 

@@ -55,3 +55,9 @@ npm run build              # prisma generate && prisma migrate deploy && next bu
 - When merging taxonomy changes, prefer the local hand-tuned exam definitions
   (config mode, subject mappings) over imported ones, and append only genuinely
   new exams.
+- The seed de-duplicates globally on `contentHash` (stem + options + correct).
+  Reusing the same fact bank for two topics therefore drops the second copy
+  entirely, leaving that topic empty. Give each topic its own distinct facts.
+- `SEED_SUBJECT_CAP` is unset by default so the full generated bank ships; set it
+  (e.g. `SEED_SUBJECT_CAP=5000`) to trim a subject that would otherwise dominate
+  when seeding a small environment.
